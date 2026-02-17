@@ -6,4 +6,4 @@ to discuss what you would like to change.
 Please make sure to update tests as appropriate.
 
 ## License
-[GNU](Ak2gruppe4\LICENSE)
+[GPL-3.0 license](LICENSE)
