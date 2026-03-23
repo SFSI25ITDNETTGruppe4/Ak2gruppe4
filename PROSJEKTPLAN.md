@@ -24,6 +24,7 @@ Levere en fungerende Python-app med GUI og databasekobling som oppfyller kravene
 - Avklare rollefordeling i gruppa
 - Klargjore GitHub-flyt (pull -> add -> commit -> push)
 - Sette opp prosjektstruktur (gui, db, api, rapport)
+-finne hosting for databasen
 - Lage databasekobling og test mot databasen
 - Lage enkel GUI-startside
 
