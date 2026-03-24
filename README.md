@@ -4,16 +4,12 @@ Flask-prosjekt for arbeidskrav med GUI/nettvisning mot databasen `varehusdb`.
 
 ## AWS databasekobling
 
-Prosjektet er satt opp for å bruke denne RDS-host'en som standard:
-
-`varehusdb.cf6um6awm1jz.eu-north-1.rds.amazonaws.com`
-
 For lokal kjøring anbefales en `.env`-fil i prosjektroten. `.env` er ignorert av Git.
 
 Eksempel:
 
 ```env
-DB_HOST=varehusdb.cf6um6awm1jz.eu-north-1.rds.amazonaws.com
+DB_HOST=<rds-endepunkt>
 DB_USER=<aws-bruker>
 DB_PASSWORD=<aws-passord>
 DB_NAME=varehusdb
@@ -41,7 +37,7 @@ Hvis databasen ikke er importert ennå:
 Eksempel med MySQL-klient:
 
 ```powershell
-mysql -h varehusdb.cf6um6awm1jz.eu-north-1.rds.amazonaws.com -u <aws-bruker> -p varehusdb < db\varehusdb.sql
+mysql -h <rds-endepunkt> -u <aws-bruker> -p varehusdb < db\varehusdb.sql
 ```
 
 ## Contributing
