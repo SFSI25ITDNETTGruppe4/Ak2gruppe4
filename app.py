@@ -126,7 +126,7 @@ def api_ordrer_detaljer(ordreNr):
                        CONCAT(k.Fornavn, ' ', k.Etternavn) AS Navn,
                        k.Adresse,
                        k.PostNr AS Postnummer,
-                       p.Poststed AS By
+                      p.Poststed AS `By`
                 FROM ordre o
                 LEFT JOIN kunde k ON o.KNr = k.KNr
                 LEFT JOIN poststed p ON k.PostNr = p.PostNr
