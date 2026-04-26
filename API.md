@@ -166,6 +166,33 @@ Error Response (404 Not Found):
 
 ---
 
+### 🧾 **Faktura - Generer PDF**
+```
+POST /api/ordrer/<ordreNr>/faktura
+Genererer faktura-PDF med moms og lagrer unikt fakturanummer i databasen.
+
+Eksempel: POST /api/ordrer/22696/faktura
+
+Response (200 OK):
+- Content-Type: application/pdf
+- Header: X-Invoice-Number: FAK-20260426-22696-1234
+- Body: PDF-fil
+
+Error Response (404 Not Found):
+{
+  "ok": false,
+  "message": "Ordre ikke funnet"
+}
+
+Error Response (409 Conflict):
+{
+  "ok": false,
+  "message": "Ordren har ingen ordrelinjer"
+}
+```
+
+---
+
 ### 🏥 **Helse-sjekk**
 ```
 GET /health/db
@@ -223,5 +250,6 @@ mysql -u evehan07 -p varehusdb < db/setup_api_features.sql
 
 Dette oppretter:
 - Stored Procedure: `sp_list_kunder()`
+- Tabell: `faktura` for unikt fakturanummer per ordre
 - Sjekker tabell-strukturer
 

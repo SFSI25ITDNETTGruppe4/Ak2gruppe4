@@ -21,6 +21,18 @@ END$$
 
 DELIMITER ;
 
+-- 2. Faktura-tabell for PDF-generering med unikt fakturanummer
+CREATE TABLE IF NOT EXISTS faktura (
+    FakturaID INT AUTO_INCREMENT PRIMARY KEY,
+    FakturaNr VARCHAR(40) NOT NULL UNIQUE,
+    OrdreNr INT NOT NULL,
+    Opprettet DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    TotalForMoms DECIMAL(12, 2) NOT NULL,
+    MomsBelop DECIMAL(12, 2) NOT NULL,
+    TotalMedMoms DECIMAL(12, 2) NOT NULL,
+    UNIQUE KEY uk_faktura_ordre (OrdreNr)
+);
+
 -- =====================================================
 -- Verify tables exist
 -- =====================================================

@@ -1,9 +1,14 @@
 import os
+import io
+import secrets
+from datetime import datetime
 
 import pymysql
 from dotenv import load_dotenv
 from flask_cors import CORS
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 load_dotenv()
 
@@ -79,6 +84,105 @@ def check_db_connection():
         return True, "Database connection successful"
     except Exception as exc:
         return False, str(exc)
+
+
+def ensure_invoice_table(cursor):
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS faktura (
+            FakturaID INT AUTO_INCREMENT PRIMARY KEY,
+            FakturaNr VARCHAR(40) NOT NULL UNIQUE,
+            OrdreNr INT NOT NULL,
+            Opprettet DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            TotalForMoms DECIMAL(12, 2) NOT NULL,
+            MomsBelop DECIMAL(12, 2) NOT NULL,
+            TotalMedMoms DECIMAL(12, 2) NOT NULL,
+            UNIQUE KEY uk_faktura_ordre (OrdreNr)
+        )
+        """
+    )
+
+
+def generate_unique_invoice_number(cursor, ordre_nr):
+    date_part = datetime.utcnow().strftime("%Y%m%d")
+    for _ in range(20):
+        token = secrets.randbelow(10000)
+        faktura_nr = f"FAK-{date_part}-{ordre_nr}-{token:04d}"
+        cursor.execute("SELECT 1 FROM faktura WHERE FakturaNr = %s", (faktura_nr,))
+        if not cursor.fetchone():
+            return faktura_nr
+    raise RuntimeError("Klarte ikke generere unikt fakturanummer")
+
+
+def build_invoice_pdf(ordre, linjer, totaler, faktura_nr):
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    y = height - 50
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawString(40, y, "Faktura")
+    y -= 28
+
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(40, y, f"Fakturanummer: {faktura_nr}")
+    y -= 16
+    pdf.drawString(40, y, f"OrdreNr: {ordre['OrdreNr']}")
+    y -= 16
+    pdf.drawString(40, y, f"Dato: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    y -= 28
+
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(40, y, "Kunde")
+    y -= 18
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(40, y, ordre.get("Navn") or "Ukjent kunde")
+    y -= 14
+    pdf.drawString(40, y, ordre.get("Adresse") or "")
+    y -= 14
+    pdf.drawString(40, y, f"{ordre.get('Postnummer') or ''} {ordre.get('By') or ''}".strip())
+    y -= 26
+
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(40, y, "VNr")
+    pdf.drawString(85, y, "Vare")
+    pdf.drawRightString(360, y, "Antall")
+    pdf.drawRightString(450, y, "Pris")
+    pdf.drawRightString(540, y, "Linjesum")
+    y -= 10
+    pdf.line(40, y, 545, y)
+    y -= 14
+
+    pdf.setFont("Helvetica", 10)
+    for linje in linjer:
+        if y < 120:
+            pdf.showPage()
+            y = height - 50
+            pdf.setFont("Helvetica", 10)
+        pdf.drawString(40, y, str(linje["VNr"]))
+        pdf.drawString(85, y, str(linje["Betegnelse"])[:42])
+        pdf.drawRightString(360, y, str(linje["Antall"]))
+        pdf.drawRightString(450, y, f"{float(linje['Pris']):.2f} kr")
+        pdf.drawRightString(540, y, f"{float(linje['LinjeSum']):.2f} kr")
+        y -= 14
+
+    y -= 8
+    pdf.line(340, y, 545, y)
+    y -= 18
+    pdf.drawRightString(520, y, "Subtotal:")
+    pdf.drawRightString(545, y, f"{float(totaler['total_før_moms']):.2f} kr")
+    y -= 16
+    pdf.drawRightString(520, y, "MVA 25%:")
+    pdf.drawRightString(545, y, f"{float(totaler['moms_25_prosent']):.2f} kr")
+    y -= 18
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawRightString(520, y, "Total:")
+    pdf.drawRightString(545, y, f"{float(totaler['total_med_moms']):.2f} kr")
+
+    pdf.showPage()
+    pdf.save()
+    buffer.seek(0)
+    return buffer
 
 @app.route("/")
 def home():
@@ -273,6 +377,87 @@ def health_db():
     ok, message = check_db_connection()
     status = 200 if ok else 503
     return jsonify({"ok": ok, "message": message}), status
+
+
+@app.route("/api/ordrer/<int:ordreNr>/faktura", methods=["POST"])
+def api_generer_faktura(ordreNr):
+    try:
+        connection = get_db_connection()
+        with connection.cursor() as cursor:
+            ensure_invoice_table(cursor)
+
+            ordre_query = """
+                SELECT o.OrdreNr, o.OrdreDato,
+                       k.KNr,
+                       CONCAT(k.Fornavn, ' ', k.Etternavn) AS Navn,
+                       k.Adresse,
+                       k.PostNr AS Postnummer,
+                       p.Poststed AS `By`
+                FROM ordre o
+                LEFT JOIN kunde k ON o.KNr = k.KNr
+                LEFT JOIN poststed p ON k.PostNr = p.PostNr
+                WHERE o.OrdreNr = %s
+            """
+            cursor.execute(ordre_query, (ordreNr,))
+            ordre_data = cursor.fetchone()
+            if not ordre_data:
+                connection.close()
+                return jsonify({"ok": False, "message": "Ordre ikke funnet"}), 404
+
+            linjer_query = """
+                SELECT ol.OrdreNr, ol.VNr, v.Betegnelse, ol.Antall,
+                       ol.PrisPrEnhet AS Pris,
+                       (ol.Antall * ol.PrisPrEnhet) AS LinjeSum
+                FROM ordrelinje ol
+                JOIN vare v ON ol.VNr = v.VNr
+                WHERE ol.OrdreNr = %s
+                ORDER BY ol.VNr
+            """
+            cursor.execute(linjer_query, (ordreNr,))
+            linjer = cursor.fetchall()
+            if not linjer:
+                connection.close()
+                return jsonify({"ok": False, "message": "Ordren har ingen ordrelinjer"}), 409
+
+            subtotal = sum(float(linje["LinjeSum"]) for linje in linjer)
+            moms = subtotal * 0.25
+            total = subtotal + moms
+            totaler = {
+                "total_før_moms": round(subtotal, 2),
+                "moms_25_prosent": round(moms, 2),
+                "total_med_moms": round(total, 2),
+            }
+
+            cursor.execute("SELECT FakturaNr FROM faktura WHERE OrdreNr = %s", (ordreNr,))
+            existing = cursor.fetchone()
+            if existing:
+                faktura_nr = existing["FakturaNr"]
+            else:
+                faktura_nr = generate_unique_invoice_number(cursor, ordreNr)
+                insert_query = """
+                    INSERT INTO faktura (
+                        FakturaNr, OrdreNr, TotalForMoms, MomsBelop, TotalMedMoms
+                    ) VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(
+                    insert_query,
+                    (faktura_nr, ordreNr, totaler["total_før_moms"], totaler["moms_25_prosent"], totaler["total_med_moms"]),
+                )
+                connection.commit()
+
+        connection.close()
+
+        pdf_buffer = build_invoice_pdf(ordre_data, linjer, totaler, faktura_nr)
+        response = send_file(
+            pdf_buffer,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"{faktura_nr}.pdf",
+        )
+        response.headers["X-Invoice-Number"] = faktura_nr
+        return response
+    except Exception as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 503
 
 if __name__ == "__main__":
     app.run(debug=True)

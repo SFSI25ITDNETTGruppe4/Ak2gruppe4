@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import requests
 import json
 
@@ -140,6 +140,7 @@ class VarehusApp:
         button_frame.pack(fill=tk.X, pady=5)
         ttk.Button(button_frame, text="Oppdater", command=self.update_ordrer).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Se detaljer", command=self.show_ordrer_detaljer).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Generer faktura (PDF)", command=self.generate_faktura_pdf).pack(side=tk.LEFT, padx=5)
         
         # Tabel
         self.ordrer_tree = ttk.Treeview(
@@ -265,6 +266,44 @@ class VarehusApp:
             )
             ttk.Label(detail_window, text=total_text, font=("Arial", 11, "bold")).pack(padx=10, pady=10)
         
+        except requests.exceptions.RequestException as e:
+            messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
+
+    def generate_faktura_pdf(self):
+        """Generer og lagre PDF-faktura for valgt ordre"""
+        selected = self.ordrer_tree.selection()
+        if not selected:
+            messagebox.showwarning("Advarsel", "Velg en ordre først")
+            return
+
+        ordreNr = self.ordrer_tree.item(selected[0])["values"][0]
+
+        try:
+            response = requests.post(f"{API_BASE_URL}/api/ordrer/{ordreNr}/faktura", timeout=20)
+            if response.status_code >= 400:
+                try:
+                    data = response.json()
+                    message = data.get("message", "Ukjent feil")
+                except Exception:
+                    message = f"HTTP {response.status_code}"
+                messagebox.showerror("Faktura-feil", message)
+                return
+
+            faktura_nr = response.headers.get("X-Invoice-Number", f"faktura-{ordreNr}")
+            filename = filedialog.asksaveasfilename(
+                title="Lagre faktura",
+                defaultextension=".pdf",
+                initialfile=f"{faktura_nr}.pdf",
+                filetypes=[("PDF filer", "*.pdf")],
+            )
+
+            if not filename:
+                return
+
+            with open(filename, "wb") as out_file:
+                out_file.write(response.content)
+
+            messagebox.showinfo("Suksess", f"Faktura lagret: {filename}")
         except requests.exceptions.RequestException as e:
             messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
     
