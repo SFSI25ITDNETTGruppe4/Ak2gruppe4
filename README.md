@@ -26,6 +26,18 @@ python app.py
 - `http://127.0.0.1:5000/api/ordrer`
 - `http://127.0.0.1:5000/health/db`
 
+## 1b. Start GUI (for alle i gruppa)
+
+1. Kopier `.env.example` til `.env`.
+2. GUI bruker `API_BASE_URL` fra `.env`:
+	- Standard i prosjektet: `https://ak2gruppe4.onrender.com`
+	- Lokal backend (valgfritt): `http://localhost:5000`
+3. Start GUI:
+
+```powershell
+python gui.py
+```
+
 ## 2. Frontend pa GitHub Pages
 
 Frontend ligger i `docs/`:

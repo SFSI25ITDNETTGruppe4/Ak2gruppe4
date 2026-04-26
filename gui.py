@@ -2,12 +2,18 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import requests
 import json
+import os
+from dotenv import load_dotenv
 
 # =====================================================
 # CONFIG
 # =====================================================
 
-API_BASE_URL = "http://localhost:5000"  # Endre til https://ak2gruppe4.onrender.com for production
+load_dotenv()
+
+# Default til live API for å unngå localhost-feil når backend ikke kjører lokalt.
+# Kan overstyres med miljøvariabelen API_BASE_URL.
+API_BASE_URL = os.getenv("API_BASE_URL", "https://ak2gruppe4.onrender.com").rstrip("/")
 
 # =====================================================
 # MAIN WINDOW
@@ -47,6 +53,13 @@ class VarehusApp:
         """Tøm content frame"""
         for widget in self.content_frame.winfo_children():
             widget.destroy()
+
+    @staticmethod
+    def _to_float(value, default=0.0):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
     
     # =====================================================
     # TAB: VARELAGER
@@ -115,7 +128,7 @@ class VarehusApp:
                         vare["VNr"],
                         vare["Betegnelse"],
                         vare["Antall"],
-                        f"{vare['Pris']:.2f}"
+                        f"{self._to_float(vare.get('Pris')):.2f}"
                     )
                 )
             
@@ -251,8 +264,8 @@ class VarehusApp:
                     linje["VNr"],
                     linje["Betegnelse"],
                     linje["Antall"],
-                    f"{linje['Pris']:.2f}",
-                    f"{linje['LinjeSum']:.2f}"
+                    f"{self._to_float(linje.get('Pris')):.2f}",
+                    f"{self._to_float(linje.get('LinjeSum')):.2f}"
                 ))
             
             tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -260,9 +273,9 @@ class VarehusApp:
             # Totaler
             totaler = data["totaler"]
             total_text = (
-                f"Subtotal: {totaler['total_før_moms']:.2f} kr\n"
-                f"Moms (25%): {totaler['moms_25_prosent']:.2f} kr\n"
-                f"TOTAL: {totaler['total_med_moms']:.2f} kr"
+                f"Subtotal: {self._to_float(totaler.get('total_før_moms')):.2f} kr\n"
+                f"Moms (25%): {self._to_float(totaler.get('moms_25_prosent')):.2f} kr\n"
+                f"TOTAL: {self._to_float(totaler.get('total_med_moms')):.2f} kr"
             )
             ttk.Label(detail_window, text=total_text, font=("Arial", 11, "bold")).pack(padx=10, pady=10)
         
