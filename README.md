@@ -179,3 +179,7 @@ python app.py
 ## 11. License
 
 [GPL-3.0 license](LICENSE)
+
+## 12. Før demo/innlevering
+
+Se [CHECKLISTE.md](CHECKLISTE.md) for en kort gjennomgang av alt som bør verifiseres før demo og innlevering.
