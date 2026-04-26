@@ -27,11 +27,12 @@ CORS(
 
 
 def get_db_config():
+    # Support both DB_* and generic HOST/USER/PASSWORD names used by some hosts.
     return {
-        "host": os.getenv("DB_HOST", ""),
-        "user": os.getenv("DB_USER", ""),
-        "password": os.getenv("DB_PASSWORD", ""),
-        "database": os.getenv("DB_NAME", "varehusdb"),
+        "host": os.getenv("DB_HOST") or os.getenv("HOST") or "",
+        "user": os.getenv("DB_USER") or os.getenv("USER") or "",
+        "password": os.getenv("DB_PASSWORD") or os.getenv("PASSWORD") or "",
+        "database": os.getenv("DB_NAME") or os.getenv("DATABASE") or "varehusdb",
     }
 
 
@@ -121,9 +122,14 @@ def api_ordrer_detaljer(ordreNr):
             # Hent ordreinfo + kundeinfo
             ordre_query = """
                 SELECT o.OrdreNr, o.OrdreDato, o.SendtDato, o.BetaltDato,
-                       k.KNr, k.Navn, k.Adresse, k.Postnummer, k.By
+                       k.KNr,
+                       CONCAT(k.Fornavn, ' ', k.Etternavn) AS Navn,
+                       k.Adresse,
+                       k.PostNr AS Postnummer,
+                       p.Poststed AS By
                 FROM ordre o
                 LEFT JOIN kunde k ON o.KNr = k.KNr
+                LEFT JOIN poststed p ON k.PostNr = p.PostNr
                 WHERE o.OrdreNr = %s
             """
             cursor.execute(ordre_query, (ordreNr,))
@@ -135,9 +141,10 @@ def api_ordrer_detaljer(ordreNr):
             
             # Hent orderlinjer med varenavn
             linjer_query = """
-                SELECT ol.OrdreNr, ol.VNr, v.Betegnelse, ol.Antall, ol.Pris,
-                       (ol.Antall * ol.Pris) as LinjeSum
-                FROM ordre_linje ol
+                  SELECT ol.OrdreNr, ol.VNr, v.Betegnelse, ol.Antall,
+                      ol.PrisPrEnhet AS Pris,
+                      (ol.Antall * ol.PrisPrEnhet) as LinjeSum
+                  FROM ordrelinje ol
                 JOIN vare v ON ol.VNr = v.VNr
                 WHERE ol.OrdreNr = %s
                 ORDER BY ol.VNr
@@ -184,27 +191,38 @@ def api_kunder():
     elif request.method == "POST":
         data = request.get_json() or {}
         navn = data.get("Navn", "").strip()
+        fornavn = data.get("Fornavn", "").strip()
+        etternavn = data.get("Etternavn", "").strip()
         adresse = data.get("Adresse", "").strip()
-        postnummer = data.get("Postnummer", "").strip()
-        by = data.get("By", "").strip()
+        postnummer = data.get("Postnummer", data.get("PostNr", "")).strip()
         
+        # Støtt både Navn-felt og Fornavn/Etternavn-felter
+        if navn and (not fornavn and not etternavn):
+            parts = navn.split(maxsplit=1)
+            fornavn = parts[0]
+            etternavn = parts[1] if len(parts) > 1 else "Ukjent"
+
         # Validering
-        if not all([navn, adresse, postnummer, by]):
-            return jsonify({"ok": False, "message": "Alle felter er påkrevd"}), 400
+        if not all([fornavn, etternavn, adresse, postnummer]):
+            return jsonify({"ok": False, "message": "Fornavn, etternavn, adresse og postnummer er påkrevd"}), 400
         
-        if len(navn) > 100 or len(adresse) > 100:
-            return jsonify({"ok": False, "message": "Navn/adresse for lang"}), 400
+        if len(fornavn) > 50 or len(etternavn) > 50 or len(adresse) > 100:
+            return jsonify({"ok": False, "message": "Fornavn/etternavn/adresse er for langt"}), 400
+
+        if len(postnummer) != 4 or not postnummer.isdigit():
+            return jsonify({"ok": False, "message": "Postnummer må være 4 siffer"}), 400
         
         try:
             connection = get_db_connection()
             with connection.cursor() as cursor:
                 insert_query = """
-                    INSERT INTO kunde (Navn, Adresse, Postnummer, By)
+                    INSERT INTO kunde (Fornavn, Etternavn, Adresse, PostNr)
                     VALUES (%s, %s, %s, %s)
                 """
-                cursor.execute(insert_query, (navn, adresse, postnummer, by))
+                cursor.execute(insert_query, (fornavn, etternavn, adresse, postnummer))
                 connection.commit()
-                new_knr = cursor.lastrowid
+                cursor.execute("SELECT MAX(KNr) AS KNr FROM kunde")
+                new_knr = cursor.fetchone()["KNr"]
             connection.close()
             
             return jsonify({

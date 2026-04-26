@@ -9,8 +9,13 @@ DROP PROCEDURE IF EXISTS sp_list_kunder$$
 
 CREATE PROCEDURE sp_list_kunder()
 BEGIN
-    SELECT KNr, Navn, Adresse, Postnummer, By
-    FROM kunde
+    SELECT k.KNr,
+           CONCAT(k.Fornavn, ' ', k.Etternavn) AS Navn,
+           k.Adresse,
+           k.PostNr AS Postnummer,
+            p.Poststed AS `By`
+    FROM kunde k
+    LEFT JOIN poststed p ON k.PostNr = p.PostNr
     ORDER BY Navn ASC;
 END$$
 
@@ -21,11 +26,11 @@ DELIMITER ;
 -- =====================================================
 
 -- Check ordre_linje table structure (if it exists)
--- Should have: OrdreNr, VNr, Antall, Pris
-DESCRIBE ordre_linje;
+-- Should have: OrdreNr, VNr, Antall, PrisPrEnhet
+DESCRIBE ordrelinje;
 
 -- Check kunde table structure
--- Should have: KNr, Navn, Adresse, Postnummer, By
+-- Should have: KNr, Fornavn, Etternavn, Adresse, PostNr
 DESCRIBE kunde;
 
 -- Check ordre table
