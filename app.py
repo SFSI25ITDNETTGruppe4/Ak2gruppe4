@@ -2,11 +2,28 @@ import os
 
 import pymysql
 from dotenv import load_dotenv
+from flask_cors import CORS
 from flask import Flask, jsonify, render_template
 
 load_dotenv()
 
 app = Flask(__name__)
+
+
+def get_allowed_origins():
+    raw = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    if raw.strip():
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return ["http://127.0.0.1:5000", "http://localhost:5000"]
+
+
+CORS(
+    app,
+    resources={
+        r"/api/*": {"origins": get_allowed_origins()},
+        r"/health/*": {"origins": get_allowed_origins()},
+    },
+)
 
 
 def get_db_config():

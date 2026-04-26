@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ak2gruppe4-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    plan: free
+    healthCheckPath: /health/db
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: varehusdb
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
