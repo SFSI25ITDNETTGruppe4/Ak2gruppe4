@@ -1,5 +1,27 @@
 #overskrift {
     font-weight: bold;
     text-align: center;
-    margin-top: 50px;
+    margin-top: 20px;
+    margin-bottom: 8px;
+}
+
+body {
+    background: #f4f6f8;
+}
+
+.table-responsive {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.status-text {
+    margin-bottom: 10px;
+    color: #334155;
+}
+
+.status-error {
+    color: #b91c1c;
+    font-weight: 600;
 }

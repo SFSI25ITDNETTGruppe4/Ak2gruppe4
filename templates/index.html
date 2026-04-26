@@ -6,14 +6,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-    <link rel="stylesheet" href="static\style.css">    
-    <title>Varelager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Varehus Oversikt</title>
 </head>
 
 <body>
-     <h1 id="overskrift">Varelager</h1>
+    <main class="container py-4">
+        <header class="mb-4">
+            <h1 id="overskrift">Varehus Oversikt</h1>
+            <p class="lead text-center mb-0">Første leveranse: varelagerliste og ordreliste fra API-ruter</p>
+        </header>
 
-     <button type="button" class="btn btn-dark">List opp alle ordre</button>
+        <div class="d-flex flex-wrap gap-2 justify-content-center mb-4">
+            <button type="button" class="btn btn-dark" id="load-varelager">Last varelager</button>
+            <button type="button" class="btn btn-outline-dark" id="load-ordrer">Last ordre</button>
+        </div>
+
+        <section class="mb-4">
+            <h2 class="h4">Varelager</h2>
+            <p id="vare-status" class="status-text">Ingen data lastet ennå.</p>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm align-middle" id="vare-tabell">
+                    <thead>
+                        <tr>
+                            <th>VNr</th>
+                            <th>Betegnelse</th>
+                            <th>Antall</th>
+                            <th>Pris</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="h4">Ordreliste</h2>
+            <p id="ordre-status" class="status-text">Ingen data lastet ennå.</p>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm align-middle" id="ordre-tabell">
+                    <thead>
+                        <tr>
+                            <th>OrdreNr</th>
+                            <th>OrdreDato</th>
+                            <th>SendtDato</th>
+                            <th>BetaltDato</th>
+                            <th>KundeNr</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        async function fetchJson(url) {
+            const response = await fetch(url);
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.message || "Ukjent feil fra server.");
+            }
+            return payload;
+        }
+
+        function setText(id, text, isError = false) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.classList.toggle("status-error", isError);
+        }
+
+        function renderVarelager(items) {
+            const body = document.querySelector("#vare-tabell tbody");
+            body.innerHTML = "";
+            for (const item of items) {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${item.VNr}</td>
+                    <td>${item.Betegnelse}</td>
+                    <td>${item.Antall}</td>
+                    <td>${Number(item.Pris).toFixed(2)} kr</td>
+                `;
+                body.appendChild(row);
+            }
+        }
+
+        function renderOrdrer(items) {
+            const body = document.querySelector("#ordre-tabell tbody");
+            body.innerHTML = "";
+            for (const item of items) {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${item.OrdreNr}</td>
+                    <td>${item.OrdreDato ?? "-"}</td>
+                    <td>${item.SendtDato ?? "-"}</td>
+                    <td>${item.BetaltDato ?? "-"}</td>
+                    <td>${item.KNr}</td>
+                `;
+                body.appendChild(row);
+            }
+        }
+
+        async function loadVarelager() {
+            setText("vare-status", "Laster varelager...");
+            try {
+                const result = await fetchJson("/api/varelager");
+                renderVarelager(result.items);
+                setText("vare-status", `Viser ${result.count} varer.`);
+            } catch (error) {
+                setText("vare-status", `Feil: ${error.message}`, true);
+            }
+        }
+
+        async function loadOrdrer() {
+            setText("ordre-status", "Laster ordre...");
+            try {
+                const result = await fetchJson("/api/ordrer");
+                renderOrdrer(result.items);
+                setText("ordre-status", `Viser ${result.count} ordre.`);
+            } catch (error) {
+                setText("ordre-status", `Feil: ${error.message}`, true);
+            }
+        }
+
+        document.getElementById("load-varelager").addEventListener("click", loadVarelager);
+        document.getElementById("load-ordrer").addEventListener("click", loadOrdrer);
+
+        loadVarelager();
+    </script>
 
 </body>
 
