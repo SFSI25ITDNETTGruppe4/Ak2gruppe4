@@ -1,3 +1,15 @@
+"""Tkinter-klient for arbeidskravet i Python og database.
+
+GUI-et dekker brukerkravene i oppgaven: varelager, ordrer, ordredetaljer,
+kunder, status mot API og fakturagenerering via backend.
+
+For å kjøre GUI-et må disse avhengighetene være installert:
+- requests
+- python-dotenv
+
+GUI-et leser API_BASE_URL fra .env, eller bruker live-URL som standard.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import requests
@@ -18,6 +30,10 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://ak2gruppe4.onrender.com").rstr
 # =====================================================
 # MAIN WINDOW
 # =====================================================
+
+# denne klassen samler hele GUI-løsningen i ett vindu. Den er delt inn i faner
+# for varelager, ordrer, kunder og API-status, slik at hvert krav i oppgaven
+# kan demonstreres fra samme program.
 
 class VarehusApp:
     def __init__(self, root):
@@ -108,6 +124,7 @@ class VarehusApp:
     def update_varelager(self):
         """Hent varelager fra API"""
         try:
+            # Oppgavekrav: GUI-et skal vise varenummer, navn, antall og pris.
             response = requests.get(f"{API_BASE_URL}/api/varelager", timeout=5)
             data = response.json()
             
@@ -187,6 +204,7 @@ class VarehusApp:
     def update_ordrer(self):
         """Hent ordrer fra API"""
         try:
+            # denne funksjonen henter ordreliste fra backend og fyller tabellen i GUI-et.
             response = requests.get(f"{API_BASE_URL}/api/ordrer", timeout=5)
             data = response.json()
             
@@ -227,6 +245,7 @@ class VarehusApp:
         ordreNr = self.ordrer_tree.item(selected[0])["values"][0]
         
         try:
+            # Oppgavekrav: valgt ordre skal vise kunde, varer, antall og summer.
             response = requests.get(f"{API_BASE_URL}/api/ordrer/{ordreNr}", timeout=5)
             data = response.json()
             
@@ -259,6 +278,8 @@ class VarehusApp:
             tree.heading("Pris", text="Pris (kr)")
             tree.heading("Sum", text="Sum (kr)")
             
+            # løkken legger inn hver ordrelinje i detaljtabellen slik at bruker ser
+            # hvilke varer som er solgt, hvor mange og hva hver linje koster.
             for linje in data.get("linjer", []):
                 tree.insert("", tk.END, values=(
                     linje["VNr"],
@@ -292,6 +313,7 @@ class VarehusApp:
         ordreNr = self.ordrer_tree.item(selected[0])["values"][0]
 
         try:
+            # Oppgavekrav: faktura skal kunne genereres fra GUI for valgt ordre.
             response = requests.post(f"{API_BASE_URL}/api/ordrer/{ordreNr}/faktura", timeout=20)
             if response.status_code >= 400:
                 try:
@@ -327,6 +349,9 @@ class VarehusApp:
     def show_kunder(self):
         """Vise kunder liste"""
         self.clear_content()
+        
+        # denne fanen dekker kundedelen av oppgaven: vise kunder, legge til kunde
+        # og slette kunde via API-et.
         
         ttk.Label(self.content_frame, text="👥 Kunder", 
                  font=("Arial", 14, "bold")).pack(pady=10)
@@ -370,6 +395,7 @@ class VarehusApp:
     def update_kunder(self):
         """Hent kunder fra API"""
         try:
+            # Backend-ruten bruker Stored Procedure, som er et eksplisitt krav i oppgaven.
             response = requests.get(f"{API_BASE_URL}/api/kunder", timeout=5)
             data = response.json()
             
@@ -402,6 +428,7 @@ class VarehusApp:
     
     def add_kunde(self):
         """Legg til ny kunde"""
+        # denne funksjonen åpner et enkelt skjema for å opprette kunde fra GUI-et.
         add_window = tk.Toplevel(self.root)
         add_window.title("Ny Kunde")
         add_window.geometry("400x300")
@@ -424,6 +451,8 @@ class VarehusApp:
         by_entry.pack(padx=10, pady=5)
         
         def save_kunde():
+            # den indre funksjonen sender skjemaet til backend, som gjør selve
+            # valideringen og opprettelsen i databasen.
             try:
                 payload = {
                     "Navn": navn_entry.get(),
@@ -449,6 +478,8 @@ class VarehusApp:
     
     def delete_kunde(self):
         """Slett valgt kunde"""
+        # sletting krever at en kunde er valgt, og backend passer på at kunder
+        # med eksisterende ordrer ikke kan fjernes.
         selected = self.kunder_tree.selection()
         if not selected:
             messagebox.showwarning("Advarsel", "Velg en kunde først")
@@ -477,6 +508,9 @@ class VarehusApp:
     def show_status(self):
         """Vise API status"""
         self.clear_content()
+        
+        # denne funksjonen gjør det enkelt å teste om miljøvariabler og database
+        # er riktig satt opp på maskinen ved å kalle /health/db.
         
         ttk.Label(self.content_frame, text="🏥 API Status", 
                  font=("Arial", 14, "bold")).pack(pady=10)

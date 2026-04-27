@@ -1,3 +1,19 @@
+"""Backend for arbeidskravet i Python og database.
+
+Denne filen dekker API-delen av oppgaven: databasekobling, trygg SQL,
+ordre- og kundehenting, samt generering av faktura-PDF med unikt
+fakturanummer lagret i databasen.
+
+For å kjøre appen lokalt må disse avhengighetene være installert:
+- Flask
+- PyMySQL
+- python-dotenv
+- flask-cors
+- reportlab
+
+I tillegg må .env inneholde DB_HOST, DB_USER, DB_PASSWORD og DB_NAME.
+"""
+
 import os
 import io
 import secrets
@@ -43,6 +59,7 @@ def get_db_config():
 
 app.config["DB_CONFIG"] = get_db_config()
 
+#Husk at for at dette skal virke må miljøvariablene være satt riktigt, og at databasen er tilgjengelig. Det kan være lurt å teste databasekoblingen først via /health/db-endepunktet
 
 def get_db_connection():
     config = app.config["DB_CONFIG"]
@@ -57,6 +74,8 @@ def get_db_connection():
 
 
 def fetch_all(query, params=None):
+    # Felles hjelpefunksjon for lesespørringer. Parametre sendes separat for å
+    # unngå stringbygging av SQL i rutene.
     try:
         connection = get_db_connection()
         with connection.cursor() as cursor:
@@ -191,6 +210,7 @@ def home():
 
 @app.route("/api/varelager")
 def api_varelager():
+    # Oppgavekrav: vise varelager via API, slik at data også kan brukes i nettleser.
     query = """
         SELECT VNr, Betegnelse, Antall, Pris
         FROM vare
@@ -202,6 +222,7 @@ def api_varelager():
         return jsonify({"ok": False, "message": error}), 503
     return jsonify({"ok": True, "count": len(rows), "items": rows})
 
+# denne ruten viser de 300 siste ordrene, sortert etter ordreNr synkende. Det er ikke et krav i oppgaven, men det er ofte mer praktisk å vise de siste ordrene først, og begrense antallet for å unngå store datamengder i responsen.
 
 @app.route("/api/ordrer")
 def api_ordrer():
@@ -215,6 +236,7 @@ def api_ordrer():
     if error:
         return jsonify({"ok": False, "message": error}), 503
     return jsonify({"ok": True, "count": len(rows), "items": rows})
+#denne ruten viser detaljer for en spesifikk ordre, inkludert kundeinfo, varelinjer og totaler. Den bruker parameterisert SQL for å unngå SQL-injeksjon, og håndterer både tilfeller der ordren ikke finnes og der den finnes
 
 
 @app.route("/api/ordrer/<int:ordreNr>")
@@ -223,7 +245,7 @@ def api_ordrer_detaljer(ordreNr):
     try:
         connection = get_db_connection()
         with connection.cursor() as cursor:
-            # Hent ordreinfo + kundeinfo
+            # Oppgavekrav: valgt ordre skal vise både kundeinfo, varelinjer og total.
             ordre_query = """
                 SELECT o.OrdreNr, o.OrdreDato, o.SendtDato, o.BetaltDato,
                        k.KNr,
@@ -275,6 +297,7 @@ def api_ordrer_detaljer(ordreNr):
             })
     except Exception as exc:
         return jsonify({"ok": False, "message": str(exc)}), 503
+#denne ruten håndterer både GET og POST for kunder. GET henter alle kunder via en Stored Procedure, mens POST legger til en ny kunde med validering av input. Den støtter både "Navn" som ett felt og "Fornavn"/"Etternavn" som separate felt, og returnerer passende feilmeldinger ved valideringsfeil eller databasefeil.
 
 
 @app.route("/api/kunder", methods=["GET", "POST"])
@@ -284,7 +307,7 @@ def api_kunder():
         try:
             connection = get_db_connection()
             with connection.cursor() as cursor:
-                # Kall Stored Procedure for å liste kunder
+                # Oppgavekrav: kundelisten skal hentes via Stored Procedure.
                 cursor.callproc("sp_list_kunder")
                 kunder = cursor.fetchall()
             connection.close()
@@ -336,7 +359,9 @@ def api_kunder():
             }), 201
         except Exception as exc:
             return jsonify({"ok": False, "message": str(exc)}), 503
+        
 
+#denne ruten sletter en kunde basert på KNr, men bare hvis kunden ikke har noen tilknyttede ordrer. Den sjekker først for eksisterende ordrer, og returnerer en konfliktfeil hvis det finnes noen. Hvis kunden slettes, returneres en suksessmelding. Hvis kunden ikke finnes, returneres en 404-feil.
 
 @app.route("/api/kunder/<int:KNr>", methods=["DELETE"])
 def api_slett_kunde(KNr):
@@ -378,9 +403,11 @@ def health_db():
     status = 200 if ok else 503
     return jsonify({"ok": ok, "message": message}), status
 
+#denne ruten håndterer generering av PDF-faktura for en gitt ordre. Den henter ordre- og kundeinfo, samt varelinjer, og beregner totaler med moms. Den sjekker om det allerede finnes en faktura for ordren, og hvis ikke, genererer den et unikt fakturanummer og lagrer fakturainformasjonen i databasen
 
 @app.route("/api/ordrer/<int:ordreNr>/faktura", methods=["POST"])
 def api_generer_faktura(ordreNr):
+    # Oppgavekrav: generer PDF-faktura med moms og et unikt fakturanummer som lagres.
     try:
         connection = get_db_connection()
         with connection.cursor() as cursor:
