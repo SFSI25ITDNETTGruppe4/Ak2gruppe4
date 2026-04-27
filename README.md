@@ -7,6 +7,8 @@ Denne oppskriften dekker alt som trengs for å kjøre prosjektet:
 - Backend API: Render (Flask + MySQL)
 - GUI: Tkinter (`gui.py`)
 
+Raskeste oppstart for ny maskin: se [START_HER.md](START_HER.md)
+
 ## 0. Krav
 
 - Python 3.11+
