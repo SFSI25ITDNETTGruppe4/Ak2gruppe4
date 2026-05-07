@@ -101,7 +101,7 @@ class VarehusApp:
         self.show_varelager()
 
     def _build_header(self):
-        """Bygg toppfelt med appnavn og gruppenavn.
+        """Bygg toppfelt med appnavn.
 
         Bruker tk.Frame med fast høyde (pack_propagate=False) for et
         rent, ikke-utvidbart header-område.
@@ -119,13 +119,6 @@ class VarehusApp:
             anchor=tk.W,
         ).pack(side=tk.LEFT, padx=16, fill=tk.Y)
 
-        tk.Label(
-            header,
-            text="Gruppe 4 – AK2  ",
-            bg=COLORS["header_bg"],
-            fg="#94a3b8",
-            font=("Segoe UI", 10),
-        ).pack(side=tk.RIGHT, padx=4, fill=tk.Y)
     
     def _apply_styles(self):
         """Konfigurer ttk-stiler for hele applikasjonen med COLORS-paletten."""
