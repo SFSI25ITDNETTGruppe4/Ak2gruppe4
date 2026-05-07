@@ -57,10 +57,16 @@ class VarehusApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Varehus Lager & Ordre System")
-        self.root.geometry("1200x700")
-        
+        self.root.geometry("1200x720")
+        # Vindusbakgrunn satt til header-fargen slik at topp-/sidefeltene
+        # går i ett med header og navbar.
+        self.root.configure(bg=COLORS["header_bg"])
+
         # Stil – konfigureres via _apply_styles() som bruker COLORS-paletten
         self._apply_styles()
+
+        # Mørk header med appnavn og gruppenavn
+        self._build_header()
 
         # Navbar
         self.create_navbar()
@@ -72,19 +78,49 @@ class VarehusApp:
             root,
             textvariable=self._status_var,
             anchor=tk.W,
-            relief=tk.SUNKEN,
-            padx=8,
-            font=("Arial", 9),
+            bg=COLORS["status_bg"],
+            fg=COLORS["status_fg"],
+            padx=12,
+            pady=4,
+            font=("Segoe UI", 9),
+            relief=tk.FLAT,
         )
         self._status_label.pack(side=tk.BOTTOM, fill=tk.X)
         self._notify_job = None  # holder referanse til auto-reset-timer
 
         # Main content area
-        self.content_frame = ttk.Frame(root)
-        self.content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
+        self.content_frame = tk.Frame(root, bg=COLORS["content_bg"])
+        self.content_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 6))
+
         # Start with varelager tab
         self.show_varelager()
+
+    def _build_header(self):
+        """Bygg toppfelt med appnavn og gruppenavn.
+
+        Bruker tk.Frame med fast høyde (pack_propagate=False) for et
+        rent, ikke-utvidbart header-område.
+        """
+        header = tk.Frame(self.root, bg=COLORS["header_bg"], height=52)
+        header.pack(fill=tk.X, side=tk.TOP)
+        header.pack_propagate(False)  # behold høyden selv om innholdet er lite
+
+        tk.Label(
+            header,
+            text="  🏭  Varehus Lager & Ordre System",
+            bg=COLORS["header_bg"],
+            fg="#ffffff",
+            font=("Segoe UI", 14, "bold"),
+            anchor=tk.W,
+        ).pack(side=tk.LEFT, padx=16, fill=tk.Y)
+
+        tk.Label(
+            header,
+            text="Gruppe 4 – AK2  ",
+            bg=COLORS["header_bg"],
+            fg="#94a3b8",
+            font=("Segoe UI", 10),
+        ).pack(side=tk.RIGHT, padx=4, fill=tk.Y)
     
     def _apply_styles(self):
         """Konfigurer ttk-stiler for hele applikasjonen med COLORS-paletten."""
