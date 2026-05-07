@@ -185,3 +185,32 @@ python app.py
 ## 12. Før demo/innlevering
 
 Se [CHECKLISTE.md](CHECKLISTE.md) for en kort gjennomgang av alt som bør verifiseres før demo og innlevering.
+
+## 13. Testlogg
+
+### 2026-05-07 - Smoke-test GUI + API
+
+Kjørt fra lokal .venv med følgende resultat:
+
+- `/health/db` -> HTTP 200, `ok=True`
+- `/api/varelager` -> HTTP 200, `ok=True`
+- `/api/ordrer` -> HTTP 200, `ok=True`
+- `/api/kunder` -> HTTP 200, `ok=True`
+- `gui.py` syntaks -> OK
+- `gui.py` oppstart -> GUI startet uten traceback
+
+## 14. Release-status
+
+Per 2026-05-07 regnes dette som **Release 1** av applikasjonen.
+
+Dette regnes som ferdig baseline for arbeidskravet. Videre arbeid gjøres som:
+
+- nye features
+- patches
+- bugfixes
+
+Anbefalt versjonering videre:
+
+- `v1.0.0` = Release 1 (baseline)
+- `v1.0.x` = bugfix/patch
+- `v1.x.0` = nye features uten breaking changes
