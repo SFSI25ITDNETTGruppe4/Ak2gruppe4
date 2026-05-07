@@ -357,6 +357,11 @@ class VarehusApp:
         scrollbar = ttk.Scrollbar(self.content_frame, orient=tk.VERTICAL, command=self.varelager_tree.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.varelager_tree.config(yscroll=scrollbar.set)
+
+        # Aktiver klikk-sortering på alle kolonner
+        self._attach_sort(self.varelager_tree,
+                  ["VNr", "Betegnelse", "Antall", "Pris"],
+                  lambda: self._varelager_data)
         
         # Last data
         self.update_varelager()
@@ -437,6 +442,11 @@ class VarehusApp:
         scrollbar = ttk.Scrollbar(self.content_frame, orient=tk.VERTICAL, command=self.ordrer_tree.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.ordrer_tree.config(yscroll=scrollbar.set)
+
+        # Aktiver klikk-sortering på alle kolonner
+        self._attach_sort(self.ordrer_tree,
+                  ["OrdreNr", "OrdreDato", "SendtDato", "BetaltDato", "KNr"],
+                  lambda: self._ordrer_data)
         
         # Last data
         self.update_ordrer()
@@ -609,11 +619,6 @@ class VarehusApp:
             columns=("KNr", "Navn", "Adresse", "Postnummer", "By"),
             height=25
         )
-        # Aktiver klikk-sortering på alle kolonner (steg 6)
-        self._attach_sort(self.varelager_tree,
-                  ["VNr", "Betegnelse", "Antall", "Pris"],
-                  lambda: self._varelager_data)
-        # Last data
         self.kunder_tree.column("KNr", anchor=tk.W, width=50)
         self.kunder_tree.column("Navn", anchor=tk.W, width=200)
         self.kunder_tree.column("Adresse", anchor=tk.W, width=200)
@@ -635,6 +640,11 @@ class VarehusApp:
         scrollbar = ttk.Scrollbar(self.content_frame, orient=tk.VERTICAL, command=self.kunder_tree.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.kunder_tree.config(yscroll=scrollbar.set)
+
+        # Aktiver klikk-sortering på alle kolonner
+        self._attach_sort(self.kunder_tree,
+                  ["KNr", "Navn", "Adresse", "Postnummer", "By"],
+                  lambda: self._kunder_data)
         
         # Last data
         self.update_kunder()
@@ -657,11 +667,7 @@ class VarehusApp:
                  k["Postnummer"], k["By"])
                 for k in data.get("items", [])
             ]
-            # Aktiver klikk-sortering på alle kolonner (steg 6)
-            self._attach_sort(self.ordrer_tree,
-                      ["OrdreNr", "OrdreDato", "SendtDato", "BetaltDato", "KNr"],
-                      lambda: self._ordrer_data)
-            # Last data
+            self._fill_tree(self.kunder_tree, self._kunder_data)
             self._notify(f"Lastet {len(self._kunder_data)} kunder", "info")
         
         except requests.exceptions.RequestException as e:
@@ -701,11 +707,6 @@ class VarehusApp:
                     "Postnummer": postnummer_entry.get(),
                     "By": by_entry.get()
                 }
-                # Aktiver klikk-sortering på alle kolonner (steg 6)
-                self._attach_sort(self.kunder_tree,
-                          ["KNr", "Navn", "Adresse", "Postnummer", "By"],
-                          lambda: self._kunder_data)
-                # Last data
                 response = requests.post(f"{API_BASE_URL}/api/kunder", json=payload, timeout=5)
                 data = response.json()
                 
