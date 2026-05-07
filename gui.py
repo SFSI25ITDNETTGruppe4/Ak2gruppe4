@@ -88,6 +88,11 @@ class VarehusApp:
         self._status_label.pack(side=tk.BOTTOM, fill=tk.X)
         self._notify_job = None  # holder referanse til auto-reset-timer
 
+    # Data-cacher for klientside søk (unngår re-fetch ved filtrering)
+    self._varelager_data = []
+    self._ordrer_data    = []
+    self._kunder_data    = []
+
         # Main content area
         self.content_frame = tk.Frame(root, bg=COLORS["content_bg"])
         self.content_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 6))
@@ -219,6 +224,31 @@ class VarehusApp:
             tag = "odd" if i % 2 == 0 else "even"
             tree.insert("", tk.END, values=row, tags=(tag,))
 
+    def _filter_varelager(self):
+        """Filtrer varelager-tabellen basert på søkefeltet (klientside).
+
+        Søker i alle kolonner – treff på delstreng er nok.
+        Nullstilles automatisk om søkefeltet tømmes.
+        """
+        q = self._varelager_search.get().lower()
+        filtered = [r for r in self._varelager_data
+                    if not q or any(q in str(v).lower() for v in r)]
+        self._fill_tree(self.varelager_tree, filtered)
+
+    def _filter_ordrer(self):
+        """Filtrer ordrer-tabellen basert på søkefeltet (klientside)."""
+        q = self._ordrer_search.get().lower()
+        filtered = [r for r in self._ordrer_data
+                    if not q or any(q in str(v).lower() for v in r)]
+        self._fill_tree(self.ordrer_tree, filtered)
+
+    def _filter_kunder(self):
+        """Filtrer kunder-tabellen basert på søkefeltet (klientside)."""
+        q = self._kunder_search.get().lower()
+        filtered = [r for r in self._kunder_data
+                    if not q or any(q in str(v).lower() for v in r)]
+        self._fill_tree(self.kunder_tree, filtered)
+
     @staticmethod
     def _to_float(value, default=0.0):
         try:
@@ -249,13 +279,20 @@ class VarehusApp:
         self.clear_content()
         self._set_active_nav("varelager")  # marker aktiv fane i navbar
         
-        ttk.Label(self.content_frame, text="📦 Varelager Oversikt", 
-                 font=("Arial", 14, "bold")).pack(pady=10)
-        
-        # Knapper
-        button_frame = ttk.Frame(self.content_frame)
-        button_frame.pack(fill=tk.X, pady=5)
-        ttk.Button(button_frame, text="Oppdater", command=self.update_varelager).pack(side=tk.LEFT, padx=5)
+        ttk.Label(self.content_frame, text="📦 Varelager Oversikt",
+              font=("Arial", 14, "bold")).pack(pady=10)
+
+        # Søkefelt + oppdater-knapp i samme linje
+        top_frame = ttk.Frame(self.content_frame)
+        top_frame.pack(fill=tk.X, pady=5)
+        ttk.Button(top_frame, text="Oppdater", command=self.update_varelager).pack(side=tk.LEFT, padx=5)
+        tk.Label(top_frame, text="🔍", font=("Segoe UI", 11)).pack(side=tk.LEFT, padx=(12, 2))
+        # search_var kobles til filter-funksjonen via trace – oppdaterer tabellen live
+        self._varelager_search = tk.StringVar()
+        ttk.Entry(top_frame, textvariable=self._varelager_search, width=28).pack(side=tk.LEFT)
+        tk.Label(top_frame, text="  Søk i varelager", foreground="#94a3b8",
+             font=("Segoe UI", 9)).pack(side=tk.LEFT)
+        self._varelager_search.trace_add("write", lambda *_: self._filter_varelager())
         
         # Tabel
         self.varelager_tree = ttk.Treeview(
@@ -300,14 +337,14 @@ class VarehusApp:
                 return
             
             # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
-            rows = [
+            # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
+            self._varelager_data = [
                 (v["VNr"], v["Betegnelse"], v["Antall"],
                  f"{self._to_float(v.get('Pris')):.2f}")
                 for v in data.get("items", [])
             ]
-            self._fill_tree(self.varelager_tree, rows)
-            
-            self._notify(f"Lastet {len(data.get('items', []))} varer", "info")
+            self._fill_tree(self.varelager_tree, self._varelager_data)
+            self._notify(f"Lastet {len(self._varelager_data)} varer", "info")
         
         except requests.exceptions.RequestException as e:
             self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
@@ -321,15 +358,20 @@ class VarehusApp:
         self.clear_content()
         self._set_active_nav("ordrer")  # marker aktiv fane i navbar
         
-        ttk.Label(self.content_frame, text="📋 Ordrer", 
-                 font=("Arial", 14, "bold")).pack(pady=10)
-        
-        # Knapper
-        button_frame = ttk.Frame(self.content_frame)
-        button_frame.pack(fill=tk.X, pady=5)
-        ttk.Button(button_frame, text="Oppdater", command=self.update_ordrer).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Se detaljer", command=self.show_ordrer_detaljer).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Generer faktura (PDF)", command=self.generate_faktura_pdf).pack(side=tk.LEFT, padx=5)
+        ttk.Label(self.content_frame, text="📋 Ordrer",
+              font=("Arial", 14, "bold")).pack(pady=10)
+
+        top_frame = ttk.Frame(self.content_frame)
+        top_frame.pack(fill=tk.X, pady=5)
+        ttk.Button(top_frame, text="Oppdater", command=self.update_ordrer).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Se detaljer", command=self.show_ordrer_detaljer).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Generer faktura (PDF)", command=self.generate_faktura_pdf).pack(side=tk.LEFT, padx=5)
+        tk.Label(top_frame, text="🔍", font=("Segoe UI", 11)).pack(side=tk.LEFT, padx=(12, 2))
+        self._ordrer_search = tk.StringVar()
+        ttk.Entry(top_frame, textvariable=self._ordrer_search, width=28).pack(side=tk.LEFT)
+        tk.Label(top_frame, text="  Søk i ordrer", foreground="#94a3b8",
+             font=("Segoe UI", 9)).pack(side=tk.LEFT)
+        self._ordrer_search.trace_add("write", lambda *_: self._filter_ordrer())
         
         # Tabel
         self.ordrer_tree = ttk.Treeview(
@@ -375,14 +417,14 @@ class VarehusApp:
                 return
             
             # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
-            rows = [
+            # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
+            self._ordrer_data = [
                 (o["OrdreNr"], o["OrdreDato"], o["SendtDato"],
                  o["BetaltDato"], o["KNr"])
                 for o in data.get("items", [])
             ]
-            self._fill_tree(self.ordrer_tree, rows)
-            
-            self._notify(f"Lastet {len(data.get('items', []))} ordrer", "info")
+            self._fill_tree(self.ordrer_tree, self._ordrer_data)
+            self._notify(f"Lastet {len(self._ordrer_data)} ordrer", "info")
         
         except requests.exceptions.RequestException as e:
             self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
@@ -513,12 +555,17 @@ class VarehusApp:
         ttk.Label(self.content_frame, text="👥 Kunder",
                  font=("Arial", 14, "bold")).pack(pady=10)
         
-        # Knapper
-        button_frame = ttk.Frame(self.content_frame)
-        button_frame.pack(fill=tk.X, pady=5)
-        ttk.Button(button_frame, text="Oppdater", command=self.update_kunder).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Ny Kunde", command=self.add_kunde).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Slett", command=self.delete_kunde).pack(side=tk.LEFT, padx=5)
+            top_frame = ttk.Frame(self.content_frame)
+            top_frame.pack(fill=tk.X, pady=5)
+            ttk.Button(top_frame, text="Oppdater", command=self.update_kunder).pack(side=tk.LEFT, padx=5)
+            ttk.Button(top_frame, text="Ny Kunde", command=self.add_kunde).pack(side=tk.LEFT, padx=5)
+            ttk.Button(top_frame, text="Slett", command=self.delete_kunde).pack(side=tk.LEFT, padx=5)
+            tk.Label(top_frame, text="🔍", font=("Segoe UI", 11)).pack(side=tk.LEFT, padx=(12, 2))
+            self._kunder_search = tk.StringVar()
+            ttk.Entry(top_frame, textvariable=self._kunder_search, width=28).pack(side=tk.LEFT)
+            tk.Label(top_frame, text="  Søk i kunder", foreground="#94a3b8",
+                 font=("Segoe UI", 9)).pack(side=tk.LEFT)
+            self._kunder_search.trace_add("write", lambda *_: self._filter_kunder())
         
         # Tabel
         self.kunder_tree = ttk.Treeview(
@@ -564,14 +611,14 @@ class VarehusApp:
                 return
             
             # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
-            rows = [
+            # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
+            self._kunder_data = [
                 (k["KNr"], k["Navn"], k["Adresse"],
                  k["Postnummer"], k["By"])
                 for k in data.get("items", [])
             ]
-            self._fill_tree(self.kunder_tree, rows)
-            
-            self._notify(f"Lastet {len(data.get('items', []))} kunder", "info")
+            self._fill_tree(self.kunder_tree, self._kunder_data)
+            self._notify(f"Lastet {len(self._kunder_data)} kunder", "info")
         
         except requests.exceptions.RequestException as e:
             self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
