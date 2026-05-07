@@ -156,14 +156,50 @@ class VarehusApp:
         s.configure("TEntry",  font=("Segoe UI", 10), padding=(6, 4))
 
     def create_navbar(self):
-        """Opprett navigasjonsmeny"""
-        navbar = ttk.Frame(self.root)
-        navbar.pack(fill=tk.X, padx=5, pady=5)
-        
-        ttk.Button(navbar, text="📦 Varelager", command=self.show_varelager).pack(side=tk.LEFT, padx=5)
-        ttk.Button(navbar, text="📋 Ordrer", command=self.show_ordrer).pack(side=tk.LEFT, padx=5)
-        ttk.Button(navbar, text="👥 Kunder", command=self.show_kunder).pack(side=tk.LEFT, padx=5)
-        ttk.Button(navbar, text="🏥 API Status", command=self.show_status).pack(side=tk.LEFT, padx=5)
+        """Opprett navigasjonsmeny med aktiv-markering.
+
+        Bruker vanlige tk.Button (ikke ttk) fordi ttk ikke støtter
+        bakgrunnsfarger på alle plattformer. Referanser lagres i
+        self._nav_buttons slik at _set_active_nav() kan farge dem.
+        """
+        self._nav_buttons = {}  # key → tk.Button – brukes til aktiv-markering
+
+        navbar = tk.Frame(self.root, bg=COLORS["header_bg"], height=40)
+        navbar.pack(fill=tk.X, side=tk.TOP)
+        navbar.pack_propagate(False)
+
+        nav_items = [
+            ("varelager", "📦  Varelager",  self.show_varelager),
+            ("ordrer",    "📋  Ordrer",      self.show_ordrer),
+            ("kunder",    "👥  Kunder",      self.show_kunder),
+            ("status",    "🏥  API Status",  self.show_status),
+        ]
+        for key, label, cmd in nav_items:
+            btn = tk.Button(
+                navbar,
+                text=label,
+                bg=COLORS["header_bg"],
+                fg="#cbd5e1",
+                activebackground=COLORS["nav_hover"],
+                activeforeground="#ffffff",
+                relief=tk.FLAT,
+                bd=0,
+                padx=18,
+                pady=8,
+                font=("Segoe UI", 10),
+                cursor="hand2",
+                command=cmd,
+            )
+            btn.pack(side=tk.LEFT)
+            self._nav_buttons[key] = btn
+
+    def _set_active_nav(self, key):
+        """Marker aktiv navigasjonsknapp med klar blå bakgrunn."""
+        for k, btn in self._nav_buttons.items():
+            if k == key:
+                btn.config(bg=COLORS["nav_active"], fg="#ffffff")
+            else:
+                btn.config(bg=COLORS["header_bg"], fg="#cbd5e1")
     
     def clear_content(self):
         """Tøm content frame"""
@@ -198,6 +234,7 @@ class VarehusApp:
     def show_varelager(self):
         """Vise varelager liste"""
         self.clear_content()
+        self._set_active_nav("varelager")  # marker aktiv fane i navbar
         
         ttk.Label(self.content_frame, text="📦 Varelager Oversikt", 
                  font=("Arial", 14, "bold")).pack(pady=10)
@@ -275,6 +312,7 @@ class VarehusApp:
     def show_ordrer(self):
         """Vise ordrer liste"""
         self.clear_content()
+        self._set_active_nav("ordrer")  # marker aktiv fane i navbar
         
         ttk.Label(self.content_frame, text="📋 Ordrer", 
                  font=("Arial", 14, "bold")).pack(pady=10)
@@ -464,11 +502,12 @@ class VarehusApp:
     def show_kunder(self):
         """Vise kunder liste"""
         self.clear_content()
-        
+        self._set_active_nav("kunder")  # marker aktiv fane i navbar
+
         # denne fanen dekker kundedelen av oppgaven: vise kunder, legge til kunde
         # og slette kunde via API-et.
-        
-        ttk.Label(self.content_frame, text="👥 Kunder", 
+
+        ttk.Label(self.content_frame, text="👥 Kunder",
                  font=("Arial", 14, "bold")).pack(pady=10)
         
         # Knapper
@@ -623,7 +662,8 @@ class VarehusApp:
     def show_status(self):
         """Vise API status"""
         self.clear_content()
-        
+        self._set_active_nav("status")  # marker aktiv fane i navbar
+
         # denne funksjonen gjør det enkelt å teste om miljøvariabler og database
         # er riktig satt opp på maskinen ved å kalle /health/db.
         
