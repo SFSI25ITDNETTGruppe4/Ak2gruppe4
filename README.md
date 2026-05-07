@@ -186,6 +186,8 @@ python app.py
 
 Se [CHECKLISTE.md](CHECKLISTE.md) for en kort gjennomgang av alt som bør verifiseres før demo og innlevering.
 
+Krav mot oppgavetekst er samlet i [KRAVMATRISE.md](KRAVMATRISE.md).
+
 ## 13. Testlogg
 
 ### 2026-05-07 - Smoke-test GUI + API
