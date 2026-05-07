@@ -88,10 +88,10 @@ class VarehusApp:
         self._status_label.pack(side=tk.BOTTOM, fill=tk.X)
         self._notify_job = None  # holder referanse til auto-reset-timer
 
-    # Data-cacher for klientside søk (unngår re-fetch ved filtrering)
-    self._varelager_data = []
-    self._ordrer_data    = []
-    self._kunder_data    = []
+        # Data-cacher for klientside søk (unngår re-fetch ved filtrering)
+        self._varelager_data = []
+        self._ordrer_data    = []
+        self._kunder_data    = []
 
         # Main content area
         self.content_frame = tk.Frame(root, bg=COLORS["content_bg"])
@@ -249,6 +249,47 @@ class VarehusApp:
                     if not q or any(q in str(v).lower() for v in r)]
         self._fill_tree(self.kunder_tree, filtered)
 
+    def _attach_sort(self, tree, columns, data_ref):
+        """Knytt klikk på kolonneoverskrift til klientside-sortering.
+
+        Hvert kall lager en lukket sorteringstilstand (closure) slik at
+        varelager, ordrer og kunder sorteres uavhengig av hverandre.
+
+        data_ref: callable som returnerer gjeldende radliste (cache).
+        Første klikk sorterer stigende, andre klikk synkende (toggle).
+        Aktiv kolonne vises med ▲/▼ i overskriften.
+        """
+        sort_state = {"col": None, "reverse": False}
+
+        def on_heading_click(col):
+            rows = list(data_ref())
+            # Veksle retning om samme kolonne klikkes igjen
+            if sort_state["col"] == col:
+                sort_state["reverse"] = not sort_state["reverse"]
+            else:
+                sort_state["col"] = col
+                sort_state["reverse"] = False
+            idx = columns.index(col)
+            try:
+                # Numerisk sortering for kolonner med tall (pris, antall, ID)
+                rows.sort(key=lambda r: float(str(r[idx]).replace(",", ".")),
+                          reverse=sort_state["reverse"])
+            except ValueError:
+                # Alfabetisk sortering for tekst-kolonner
+                rows.sort(key=lambda r: str(r[idx]).lower(),
+                          reverse=sort_state["reverse"])
+            # Oppdater alle overskrifter – fjern pil fra alle, legg til på aktiv
+            for c in columns:
+                orig = tree.heading(c, "text").rstrip(" ▲▼")
+                tree.heading(c, text=orig)
+            arrow = " ▼" if sort_state["reverse"] else " ▲"
+            tree.heading(col, text=tree.heading(col, "text") + arrow)
+            self._fill_tree(tree, rows)
+
+        for col in columns:
+            # Overstyr default heading-command med vår sorteringsfunksjon
+            tree.heading(col, command=lambda c=col: on_heading_click(c))
+
     @staticmethod
     def _to_float(value, default=0.0):
         try:
@@ -291,7 +332,7 @@ class VarehusApp:
         self._varelager_search = tk.StringVar()
         ttk.Entry(top_frame, textvariable=self._varelager_search, width=28).pack(side=tk.LEFT)
         tk.Label(top_frame, text="  Søk i varelager", foreground="#94a3b8",
-             font=("Segoe UI", 9)).pack(side=tk.LEFT)
+        font=("Segoe UI", 9)).pack(side=tk.LEFT)
         self._varelager_search.trace_add("write", lambda *_: self._filter_varelager())
         
         # Tabel
@@ -370,7 +411,7 @@ class VarehusApp:
         self._ordrer_search = tk.StringVar()
         ttk.Entry(top_frame, textvariable=self._ordrer_search, width=28).pack(side=tk.LEFT)
         tk.Label(top_frame, text="  Søk i ordrer", foreground="#94a3b8",
-             font=("Segoe UI", 9)).pack(side=tk.LEFT)
+        font=("Segoe UI", 9)).pack(side=tk.LEFT)
         self._ordrer_search.trace_add("write", lambda *_: self._filter_ordrer())
         
         # Tabel
@@ -555,17 +596,17 @@ class VarehusApp:
         ttk.Label(self.content_frame, text="👥 Kunder",
                  font=("Arial", 14, "bold")).pack(pady=10)
         
-            top_frame = ttk.Frame(self.content_frame)
-            top_frame.pack(fill=tk.X, pady=5)
-            ttk.Button(top_frame, text="Oppdater", command=self.update_kunder).pack(side=tk.LEFT, padx=5)
-            ttk.Button(top_frame, text="Ny Kunde", command=self.add_kunde).pack(side=tk.LEFT, padx=5)
-            ttk.Button(top_frame, text="Slett", command=self.delete_kunde).pack(side=tk.LEFT, padx=5)
-            tk.Label(top_frame, text="🔍", font=("Segoe UI", 11)).pack(side=tk.LEFT, padx=(12, 2))
-            self._kunder_search = tk.StringVar()
-            ttk.Entry(top_frame, textvariable=self._kunder_search, width=28).pack(side=tk.LEFT)
-            tk.Label(top_frame, text="  Søk i kunder", foreground="#94a3b8",
-                 font=("Segoe UI", 9)).pack(side=tk.LEFT)
-            self._kunder_search.trace_add("write", lambda *_: self._filter_kunder())
+        top_frame = ttk.Frame(self.content_frame)
+        top_frame.pack(fill=tk.X, pady=5)
+        ttk.Button(top_frame, text="Oppdater", command=self.update_kunder).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Ny Kunde", command=self.add_kunde).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Slett", command=self.delete_kunde).pack(side=tk.LEFT, padx=5)
+        tk.Label(top_frame, text="🔍", font=("Segoe UI", 11)).pack(side=tk.LEFT, padx=(12, 2))
+        self._kunder_search = tk.StringVar()
+        ttk.Entry(top_frame, textvariable=self._kunder_search, width=28).pack(side=tk.LEFT)
+        tk.Label(top_frame, text="  Søk i kunder", foreground="#94a3b8",
+                   font=("Segoe UI", 9)).pack(side=tk.LEFT)
+        self._kunder_search.trace_add("write", lambda *_: self._filter_kunder())
         
         # Tabel
         self.kunder_tree = ttk.Treeview(
@@ -573,7 +614,11 @@ class VarehusApp:
             columns=("KNr", "Navn", "Adresse", "Postnummer", "By"),
             height=25
         )
-        self.kunder_tree.column("#0", width=0, stretch=tk.NO)
+        # Aktiver klikk-sortering på alle kolonner (steg 6)
+        self._attach_sort(self.varelager_tree,
+                  ["VNr", "Betegnelse", "Antall", "Pris"],
+                  lambda: self._varelager_data)
+        # Last data
         self.kunder_tree.column("KNr", anchor=tk.W, width=50)
         self.kunder_tree.column("Navn", anchor=tk.W, width=200)
         self.kunder_tree.column("Adresse", anchor=tk.W, width=200)
@@ -617,7 +662,11 @@ class VarehusApp:
                  k["Postnummer"], k["By"])
                 for k in data.get("items", [])
             ]
-            self._fill_tree(self.kunder_tree, self._kunder_data)
+            # Aktiver klikk-sortering på alle kolonner (steg 6)
+            self._attach_sort(self.ordrer_tree,
+                      ["OrdreNr", "OrdreDato", "SendtDato", "BetaltDato", "KNr"],
+                      lambda: self._ordrer_data)
+            # Last data
             self._notify(f"Lastet {len(self._kunder_data)} kunder", "info")
         
         except requests.exceptions.RequestException as e:
@@ -657,7 +706,11 @@ class VarehusApp:
                     "Postnummer": postnummer_entry.get(),
                     "By": by_entry.get()
                 }
-                
+                # Aktiver klikk-sortering på alle kolonner (steg 6)
+                self._attach_sort(self.kunder_tree,
+                          ["KNr", "Navn", "Adresse", "Postnummer", "By"],
+                          lambda: self._kunder_data)
+                # Last data
                 response = requests.post(f"{API_BASE_URL}/api/kunder", json=payload, timeout=5)
                 data = response.json()
                 
