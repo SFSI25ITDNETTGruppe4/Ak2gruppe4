@@ -7,7 +7,9 @@ For å kjøre GUI-et må disse avhengighetene være installert:
 - requests
 - python-dotenv
 
-GUI-et leser API_BASE_URL fra .env, eller bruker live-URL som standard.
+GUI-et leser API_BASE_URL fra .env, eller bruker live-URL som standard. dette ser vi på som end of sprint2. vi er fornøyde med att alle funskjoner virker. vi bruker nå tiden paralelt med rapportskrivingen på å gjøreforbedringer og designendringer. vi ønsker å gjøre det mer brukervennlig og visuelt tiltalende, samtidig som vi forbedrer kodekvaliteten og modulariteten.
+
+Endret 2024-06-01: lagt til klikk-sortering på alle tabeller, forbedret statusmeldinger og gjort koden mer modulær og lesbar. Alle tabeller bruker nå samme _fill_tree-funksjon for å sikre konsistent zebra-striping og enklere vedlikehold.
 """
 
 import tkinter as tk
