@@ -28,6 +28,24 @@ load_dotenv()
 API_BASE_URL = os.getenv("API_BASE_URL", "https://ak2gruppe4.onrender.com").rstrip("/")
 
 # =====================================================
+# FARGEPALETT
+# Sentralisert – endre her for å justere hele appens utseende.
+# =====================================================
+COLORS = {
+    "header_bg":  "#1a2742",   # mørk marineblå – header og navbar
+    "nav_active": "#2563eb",   # klar blå – aktiv nav-knapp
+    "nav_hover":  "#2d4a80",   # mellomblå – kolonne-hover
+    "content_bg": "#ffffff",   # hvit bakgrunn for innholdssone
+    "row_odd":    "#f0f4f8",   # lys blågrå – annenhver rad (zebra)
+    "row_even":   "#ffffff",   # hvit – annenhver rad (zebra)
+    "ok":         "#16a34a",   # grønn – suksessmelding
+    "error":      "#dc2626",   # rød – feilmelding
+    "warning":    "#d97706",   # oransje – advarsel
+    "status_bg":  "#f1f5f9",   # lys bakgrunn i statusfelt
+    "status_fg":  "#64748b",   # grå standardtekst i statusfelt
+}
+
+# =====================================================
 # MAIN WINDOW
 # =====================================================
 
@@ -41,10 +59,9 @@ class VarehusApp:
         self.root.title("Varehus Lager & Ordre System")
         self.root.geometry("1200x700")
         
-        # Style
-        style = ttk.Style()
-        style.theme_use("clam")
-        
+        # Stil – konfigureres via _apply_styles() som bruker COLORS-paletten
+        self._apply_styles()
+
         # Navbar
         self.create_navbar()
 
@@ -69,6 +86,39 @@ class VarehusApp:
         # Start with varelager tab
         self.show_varelager()
     
+    def _apply_styles(self):
+        """Konfigurer ttk-stiler for hele applikasjonen med COLORS-paletten."""
+        s = ttk.Style()
+        s.theme_use("clam")
+
+        # Treeview-rader: ren bakgrunn og lesbar skrift
+        s.configure(
+            "Treeview",
+            background=COLORS["content_bg"],
+            foreground="#1e293b",
+            rowheight=26,
+            fieldbackground=COLORS["content_bg"],
+            font=("Segoe UI", 10),
+        )
+        # Kolonneoverskrifter: mørk bakgrunn som matcher header
+        s.configure(
+            "Treeview.Heading",
+            background=COLORS["header_bg"],
+            foreground="#ffffff",
+            font=("Segoe UI", 10, "bold"),
+            relief="flat",
+            padding=(6, 4),
+        )
+        s.map("Treeview.Heading",
+              background=[("active", COLORS["nav_hover"])])
+        s.map("Treeview",
+              background=[("selected", COLORS["nav_active"])],
+              foreground=[("selected", "#ffffff")])
+
+        # Knapper og entry-felt
+        s.configure("TButton", font=("Segoe UI", 10), padding=(10, 5))
+        s.configure("TEntry",  font=("Segoe UI", 10), padding=(6, 4))
+
     def create_navbar(self):
         """Opprett navigasjonsmeny"""
         navbar = ttk.Frame(self.root)
