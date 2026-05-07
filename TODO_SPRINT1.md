@@ -1,4 +1,13 @@
-# TODO Sprint 1 (Oppsett og grunnmur)
+# TODO Sprint 1 (ARKIVERT)
+
+Status: Arkivert 2026-05-07
+
+Dette dokumentet er historisk planmateriale fra oppstarten og skal ikke brukes som aktiv status.
+For gjeldende status og leveransebevis, bruk disse filene:
+
+- `CHECKLISTE.md`
+- `KRAVMATRISE.md`
+- `PROJECT_STATUS_LOG.md`
 
 Maal for sprinten:
 - Programmet starter lokalt.
