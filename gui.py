@@ -15,8 +15,9 @@ Endret 2024-06-01: lagt til klikk-sortering på alle tabeller, forbedret statusm
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import requests
-import json
 import os
+import re
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 # =====================================================
@@ -89,6 +90,10 @@ class VarehusApp:
         )
         self._status_label.pack(side=tk.BOTTOM, fill=tk.X)
         self._notify_job = None  # holder referanse til auto-reset-timer
+
+        # Varsle dersom API-URL ikke bruker HTTPS.
+        if not self._is_secure_api_url(API_BASE_URL):
+            self._notify("Advarsel: API_BASE_URL er ikke HTTPS. Dette er usikkert i produksjon.", "warning")
 
         # Data-cacher for klientside søk (unngår re-fetch ved filtrering)
         self._varelager_data = []
@@ -292,6 +297,38 @@ class VarehusApp:
         except (TypeError, ValueError):
             return default
 
+    @staticmethod
+    def _is_secure_api_url(url):
+        """Returner True hvis URL har https-skjema og gyldig host."""
+        parsed = urlparse(url)
+        return parsed.scheme.lower() == "https" and bool(parsed.netloc)
+
+    @staticmethod
+    def _safe_filename(name, fallback="faktura"):
+        """Saniter filnavn fra server-header før lagring lokalt."""
+        cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", str(name or "")).strip("._")
+        return cleaned or fallback
+
+    def _request_json(self, method, path, *, timeout=5, **kwargs):
+        """Utfør API-kall og håndter nett-/JSON-feil konsistent."""
+        try:
+            response = requests.request(method, f"{API_BASE_URL}{path}", timeout=timeout, **kwargs)
+        except requests.exceptions.RequestException as e:
+            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
+            return None
+
+        try:
+            data = response.json()
+        except ValueError:
+            self._notify(f"Ugyldig svar fra API (HTTP {response.status_code})", "error")
+            return None
+
+        if response.status_code >= 400:
+            self._notify(data.get("message", f"HTTP {response.status_code}"), "error")
+            return None
+
+        return data
+
     def _notify(self, message, level="info"):
         """Vis tilbakemelding i statusfeltet i stedet for popup-dialoger.
 
@@ -368,27 +405,24 @@ class VarehusApp:
     
     def update_varelager(self):
         """Hent varelager fra API"""
-        try:
-            # Oppgavekrav: GUI-et skal vise varenummer, navn, antall og pris.
-            response = requests.get(f"{API_BASE_URL}/api/varelager", timeout=5)
-            data = response.json()
-            
-            if not data.get("ok"):
-                self._notify(data.get("message", "Ukjent feil"), "error")
-                return
-            
-            # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
-            # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
-            self._varelager_data = [
-                (v["VNr"], v["Betegnelse"], v["Antall"],
-                 f"{self._to_float(v.get('Pris')):.2f}")
-                for v in data.get("items", [])
-            ]
-            self._fill_tree(self.varelager_tree, self._varelager_data)
-            self._notify(f"Lastet {len(self._varelager_data)} varer", "info")
-        
-        except requests.exceptions.RequestException as e:
-            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
+        # Oppgavekrav: GUI-et skal vise varenummer, navn, antall og pris.
+        data = self._request_json("GET", "/api/varelager", timeout=5)
+        if not data:
+            return
+
+        if not data.get("ok"):
+            self._notify(data.get("message", "Ukjent feil"), "error")
+            return
+
+        # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
+        # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
+        self._varelager_data = [
+            (v["VNr"], v["Betegnelse"], v["Antall"],
+             f"{self._to_float(v.get('Pris')):.2f}")
+            for v in data.get("items", [])
+        ]
+        self._fill_tree(self.varelager_tree, self._varelager_data)
+        self._notify(f"Lastet {len(self._varelager_data)} varer", "info")
     
     # =====================================================
     # TAB: ORDRER
@@ -453,27 +487,24 @@ class VarehusApp:
     
     def update_ordrer(self):
         """Hent ordrer fra API"""
-        try:
-            # denne funksjonen henter ordreliste fra backend og fyller tabellen i GUI-et.
-            response = requests.get(f"{API_BASE_URL}/api/ordrer", timeout=5)
-            data = response.json()
-            
-            if not data.get("ok"):
-                self._notify(data.get("message", "Ukjent feil"), "error")
-                return
-            
-            # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
-            # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
-            self._ordrer_data = [
-                (o["OrdreNr"], o["OrdreDato"], o["SendtDato"],
-                 o["BetaltDato"], o["KNr"])
-                for o in data.get("items", [])
-            ]
-            self._fill_tree(self.ordrer_tree, self._ordrer_data)
-            self._notify(f"Lastet {len(self._ordrer_data)} ordrer", "info")
-        
-        except requests.exceptions.RequestException as e:
-            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
+        # denne funksjonen henter ordreliste fra backend og fyller tabellen i GUI-et.
+        data = self._request_json("GET", "/api/ordrer", timeout=5)
+        if not data:
+            return
+
+        if not data.get("ok"):
+            self._notify(data.get("message", "Ukjent feil"), "error")
+            return
+
+        # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
+        # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
+        self._ordrer_data = [
+            (o["OrdreNr"], o["OrdreDato"], o["SendtDato"],
+             o["BetaltDato"], o["KNr"])
+            for o in data.get("items", [])
+        ]
+        self._fill_tree(self.ordrer_tree, self._ordrer_data)
+        self._notify(f"Lastet {len(self._ordrer_data)} ordrer", "info")
     
     def show_ordrer_detaljer(self):
         """Vis detaljer for valgt ordre"""
@@ -484,14 +515,14 @@ class VarehusApp:
         
         ordreNr = self.ordrer_tree.item(selected[0])["values"][0]
         
-        try:
-            # Oppgavekrav: valgt ordre skal vise kunde, varer, antall og summer.
-            response = requests.get(f"{API_BASE_URL}/api/ordrer/{ordreNr}", timeout=5)
-            data = response.json()
-            
-            if not data.get("ok"):
-                self._notify(data.get("message", "Ukjent feil"), "error")
-                return
+        # Oppgavekrav: valgt ordre skal vise kunde, varer, antall og summer.
+        data = self._request_json("GET", f"/api/ordrer/{ordreNr}", timeout=5)
+        if not data:
+            return
+
+        if not data.get("ok"):
+            self._notify(data.get("message", "Ukjent feil"), "error")
+            return
             
             # Opprett detalj-vindu
             detail_window = tk.Toplevel(self.root)
@@ -543,9 +574,6 @@ class VarehusApp:
             )
             ttk.Label(detail_window, text=total_text, font=("Arial", 11, "bold")).pack(padx=10, pady=10)
             self._notify(f"Viser detaljer for ordre #{ordreNr}", "info")
-        
-        except requests.exceptions.RequestException as e:
-            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
 
     def generate_faktura_pdf(self):
         """Generer og lagre PDF-faktura for valgt ordre"""
@@ -568,7 +596,10 @@ class VarehusApp:
                 self._notify(message, "error")
                 return
 
-            faktura_nr = response.headers.get("X-Invoice-Number", f"faktura-{ordreNr}")
+            faktura_nr = self._safe_filename(
+                response.headers.get("X-Invoice-Number", f"faktura-{ordreNr}"),
+                fallback=f"faktura-{ordreNr}"
+            )
             filename = filedialog.asksaveasfilename(
                 title="Lagre faktura",
                 defaultextension=".pdf",
@@ -651,27 +682,24 @@ class VarehusApp:
     
     def update_kunder(self):
         """Hent kunder fra API"""
-        try:
-            # Backend-ruten bruker Stored Procedure, som er et eksplisitt krav i oppgaven.
-            response = requests.get(f"{API_BASE_URL}/api/kunder", timeout=5)
-            data = response.json()
-            
-            if not data.get("ok"):
-                self._notify(data.get("message", "Ukjent feil"), "error")
-                return
-            
-            # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
-            # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
-            self._kunder_data = [
-                (k["KNr"], k["Navn"], k["Adresse"],
-                 k["Postnummer"], k["By"])
-                for k in data.get("items", [])
-            ]
-            self._fill_tree(self.kunder_tree, self._kunder_data)
-            self._notify(f"Lastet {len(self._kunder_data)} kunder", "info")
-        
-        except requests.exceptions.RequestException as e:
-            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
+        # Backend-ruten bruker Stored Procedure, som er et eksplisitt krav i oppgaven.
+        data = self._request_json("GET", "/api/kunder", timeout=5)
+        if not data:
+            return
+
+        if not data.get("ok"):
+            self._notify(data.get("message", "Ukjent feil"), "error")
+            return
+
+        # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
+        # Cache data slik at søkefilter kan jobbe klientside uten ny API-kall
+        self._kunder_data = [
+            (k["KNr"], k["Navn"], k["Adresse"],
+             k["Postnummer"], k["By"])
+            for k in data.get("items", [])
+        ]
+        self._fill_tree(self.kunder_tree, self._kunder_data)
+        self._notify(f"Lastet {len(self._kunder_data)} kunder", "info")
     
     def add_kunde(self):
         """Legg til ny kunde"""
@@ -700,25 +728,22 @@ class VarehusApp:
         def save_kunde():
             # den indre funksjonen sender skjemaet til backend, som gjør selve
             # valideringen og opprettelsen i databasen.
-            try:
-                payload = {
-                    "Navn": navn_entry.get(),
-                    "Adresse": adresse_entry.get(),
-                    "Postnummer": postnummer_entry.get(),
-                    "By": by_entry.get()
-                }
-                response = requests.post(f"{API_BASE_URL}/api/kunder", json=payload, timeout=5)
-                data = response.json()
-                
-                if data.get("ok"):
-                    self._notify(f"Kunde lagt til (ID: {data['KNr']})", "info")
-                    add_window.destroy()
-                    self.update_kunder()
-                else:
-                    self._notify(data.get("message", "Ukjent feil"), "error")
-            
-            except requests.exceptions.RequestException as e:
-                self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
+            payload = {
+                "Navn": navn_entry.get(),
+                "Adresse": adresse_entry.get(),
+                "Postnummer": postnummer_entry.get(),
+                "By": by_entry.get()
+            }
+            data = self._request_json("POST", "/api/kunder", json=payload, timeout=5)
+            if not data:
+                return
+
+            if data.get("ok"):
+                self._notify(f"Kunde lagt til (ID: {data['KNr']})", "info")
+                add_window.destroy()
+                self.update_kunder()
+            else:
+                self._notify(data.get("message", "Ukjent feil"), "error")
         
         ttk.Button(add_window, text="Lagre", command=save_kunde).pack(pady=10)
     
@@ -734,18 +759,15 @@ class VarehusApp:
         KNr = self.kunder_tree.item(selected[0])["values"][0]
         
         if messagebox.askyesno("Bekreft", f"Slett kunde #{KNr}?"):
-            try:
-                response = requests.delete(f"{API_BASE_URL}/api/kunder/{KNr}", timeout=5)
-                data = response.json()
-                
-                if data.get("ok"):
-                    self._notify("Kunde slettet", "info")
-                    self.update_kunder()
-                else:
-                    self._notify(data.get("message", "Ukjent feil"), "error")
-            
-            except requests.exceptions.RequestException as e:
-                self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
+            data = self._request_json("DELETE", f"/api/kunder/{KNr}", timeout=5)
+            if not data:
+                return
+
+            if data.get("ok"):
+                self._notify("Kunde slettet", "info")
+                self.update_kunder()
+            else:
+                self._notify(data.get("message", "Ukjent feil"), "error")
     
     # =====================================================
     # TAB: STATUS
@@ -762,26 +784,24 @@ class VarehusApp:
         ttk.Label(self.content_frame, text="🏥 API Status", 
                  font=("Arial", 14, "bold")).pack(pady=10)
         
-        try:
-            response = requests.get(f"{API_BASE_URL}/health/db", timeout=5)
-            data = response.json()
-            
-            status_text = f"Status: {'✅ OK' if data.get('ok') else '❌ ERROR'}\n\nMessage:\n{data.get('message', 'N/A')}"
-            
-            if data.get("ok"):
-                status_label = ttk.Label(self.content_frame, text=status_text, 
-                                        font=("Arial", 11), foreground="green")
-            else:
-                status_label = ttk.Label(self.content_frame, text=status_text, 
-                                        font=("Arial", 11), foreground="red")
-            
-            status_label.pack(padx=20, pady=20)
-        
-        except requests.exceptions.RequestException as e:
-            error_label = ttk.Label(self.content_frame, 
-                                   text=f"❌ Kan ikke koble til API\n\n{str(e)}", 
+        data = self._request_json("GET", "/health/db", timeout=5)
+        if not data:
+            error_label = ttk.Label(self.content_frame,
+                                   text="❌ Kan ikke hente status fra API",
                                    font=("Arial", 11), foreground="red")
             error_label.pack(padx=20, pady=20)
+            return
+
+        status_text = f"Status: {'✅ OK' if data.get('ok') else '❌ ERROR'}\n\nMessage:\n{data.get('message', 'N/A')}"
+
+        if data.get("ok"):
+            status_label = ttk.Label(self.content_frame, text=status_text,
+                                    font=("Arial", 11), foreground="green")
+        else:
+            status_label = ttk.Label(self.content_frame, text=status_text,
+                                    font=("Arial", 11), foreground="red")
+
+        status_label.pack(padx=20, pady=20)
 
 
 # =====================================================
