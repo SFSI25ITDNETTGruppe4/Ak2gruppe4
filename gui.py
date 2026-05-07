@@ -206,6 +206,19 @@ class VarehusApp:
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
+    def _fill_tree(self, tree, rows):
+        """Tøm og fyll Treeview med zebra-striper (annenhver rad farges).
+
+        Alle tabeller i appen bruker denne hjelperen slik at stripingen
+        er konsistent. Tags 'odd' og 'even' må være definert på treet
+        på forhånd (gjøres rett etter at Treeview opprettes).
+        """
+        tree.delete(*tree.get_children())
+        for i, row in enumerate(rows):
+            # Annenhver rad får ulik bakgrunn via tag
+            tag = "odd" if i % 2 == 0 else "even"
+            tree.insert("", tk.END, values=row, tags=(tag,))
+
     @staticmethod
     def _to_float(value, default=0.0):
         try:
@@ -263,6 +276,9 @@ class VarehusApp:
         self.varelager_tree.heading("Pris", text="Pris (kr)", anchor=tk.E)
         
         self.varelager_tree.pack(fill=tk.BOTH, expand=True)
+        # Sett zebra-stripefarger via tags (brukes av _fill_tree)
+        self.varelager_tree.tag_configure("odd",  background=COLORS["row_odd"])
+        self.varelager_tree.tag_configure("even", background=COLORS["row_even"])
         
         # Scroll bar
         scrollbar = ttk.Scrollbar(self.content_frame, orient=tk.VERTICAL, command=self.varelager_tree.yview)
@@ -283,22 +299,13 @@ class VarehusApp:
                 self._notify(data.get("message", "Ukjent feil"), "error")
                 return
             
-            # Tøm tabel
-            for item in self.varelager_tree.get_children():
-                self.varelager_tree.delete(item)
-            
-            # Fyll med data
-            for vare in data.get("items", []):
-                self.varelager_tree.insert(
-                    "",
-                    tk.END,
-                    values=(
-                        vare["VNr"],
-                        vare["Betegnelse"],
-                        vare["Antall"],
-                        f"{self._to_float(vare.get('Pris')):.2f}"
-                    )
-                )
+            # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
+            rows = [
+                (v["VNr"], v["Betegnelse"], v["Antall"],
+                 f"{self._to_float(v.get('Pris')):.2f}")
+                for v in data.get("items", [])
+            ]
+            self._fill_tree(self.varelager_tree, rows)
             
             self._notify(f"Lastet {len(data.get('items', []))} varer", "info")
         
@@ -344,6 +351,9 @@ class VarehusApp:
         self.ordrer_tree.heading("KNr", text="Kunde Nr", anchor=tk.CENTER)
         
         self.ordrer_tree.pack(fill=tk.BOTH, expand=True)
+        # Sett zebra-stripefarger via tags (brukes av _fill_tree)
+        self.ordrer_tree.tag_configure("odd",  background=COLORS["row_odd"])
+        self.ordrer_tree.tag_configure("even", background=COLORS["row_even"])
         
         # Scrollbar
         scrollbar = ttk.Scrollbar(self.content_frame, orient=tk.VERTICAL, command=self.ordrer_tree.yview)
@@ -364,23 +374,13 @@ class VarehusApp:
                 self._notify(data.get("message", "Ukjent feil"), "error")
                 return
             
-            # Tøm tabel
-            for item in self.ordrer_tree.get_children():
-                self.ordrer_tree.delete(item)
-            
-            # Fyll med data
-            for ordre in data.get("items", []):
-                self.ordrer_tree.insert(
-                    "",
-                    tk.END,
-                    values=(
-                        ordre["OrdreNr"],
-                        ordre["OrdreDato"],
-                        ordre["SendtDato"],
-                        ordre["BetaltDato"],
-                        ordre["KNr"]
-                    )
-                )
+            # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
+            rows = [
+                (o["OrdreNr"], o["OrdreDato"], o["SendtDato"],
+                 o["BetaltDato"], o["KNr"])
+                for o in data.get("items", [])
+            ]
+            self._fill_tree(self.ordrer_tree, rows)
             
             self._notify(f"Lastet {len(data.get('items', []))} ordrer", "info")
         
@@ -432,8 +432,11 @@ class VarehusApp:
             
             # løkken legger inn hver ordrelinje i detaljtabellen slik at bruker ser
             # hvilke varer som er solgt, hvor mange og hva hver linje koster.
-            for linje in data.get("linjer", []):
-                tree.insert("", tk.END, values=(
+            # Zebra-striper i detalj-vinduets tabell
+            tree.tag_configure("odd",  background=COLORS["row_odd"])
+            tree.tag_configure("even", background=COLORS["row_even"])
+            for i, linje in enumerate(data.get("linjer", [])):
+                tree.insert("", tk.END, tags=("odd" if i % 2 == 0 else "even",), values=(
                     linje["VNr"],
                     linje["Betegnelse"],
                     linje["Antall"],
@@ -537,6 +540,9 @@ class VarehusApp:
         self.kunder_tree.heading("By", text="By", anchor=tk.W)
         
         self.kunder_tree.pack(fill=tk.BOTH, expand=True)
+        # Sett zebra-stripefarger via tags (brukes av _fill_tree)
+        self.kunder_tree.tag_configure("odd",  background=COLORS["row_odd"])
+        self.kunder_tree.tag_configure("even", background=COLORS["row_even"])
         
         # Scrollbar
         scrollbar = ttk.Scrollbar(self.content_frame, orient=tk.VERTICAL, command=self.kunder_tree.yview)
@@ -557,23 +563,13 @@ class VarehusApp:
                 self._notify(data.get("message", "Ukjent feil"), "error")
                 return
             
-            # Tøm tabel
-            for item in self.kunder_tree.get_children():
-                self.kunder_tree.delete(item)
-            
-            # Fyll med data
-            for kunde in data.get("items", []):
-                self.kunder_tree.insert(
-                    "",
-                    tk.END,
-                    values=(
-                        kunde["KNr"],
-                        kunde["Navn"],
-                        kunde["Adresse"],
-                        kunde["Postnummer"],
-                        kunde["By"]
-                    )
-                )
+            # Bygg radliste og fyll tabell med zebra-striper via _fill_tree
+            rows = [
+                (k["KNr"], k["Navn"], k["Adresse"],
+                 k["Postnummer"], k["By"])
+                for k in data.get("items", [])
+            ]
+            self._fill_tree(self.kunder_tree, rows)
             
             self._notify(f"Lastet {len(data.get('items', []))} kunder", "info")
         
