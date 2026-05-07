@@ -47,7 +47,21 @@ class VarehusApp:
         
         # Navbar
         self.create_navbar()
-        
+
+        # Statusfelt nederst – pakkes FØR content_frame slik at det alltid er
+        # synlig selv når content_frame fyller resten av vinduet (expand=True).
+        self._status_var = tk.StringVar(value="Klar")
+        self._status_label = tk.Label(
+            root,
+            textvariable=self._status_var,
+            anchor=tk.W,
+            relief=tk.SUNKEN,
+            padx=8,
+            font=("Arial", 9),
+        )
+        self._status_label.pack(side=tk.BOTTOM, fill=tk.X)
+        self._notify_job = None  # holder referanse til auto-reset-timer
+
         # Main content area
         self.content_frame = ttk.Frame(root)
         self.content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -76,6 +90,20 @@ class VarehusApp:
             return float(value)
         except (TypeError, ValueError):
             return default
+
+    def _notify(self, message, level="info"):
+        """Vis tilbakemelding i statusfeltet i stedet for popup-dialoger.
+
+        level: 'info' = grønn, 'error' = rød, 'warning' = oransje.
+        Meldingen nullstilles automatisk til 'Klar' etter 4 sekunder.
+        """
+        colors = {"info": "green", "error": "red", "warning": "darkorange"}
+        self._status_label.config(foreground=colors.get(level, "black"))
+        self._status_var.set(message)
+        # Avbryt eventuell pågående timer slik at nye meldinger ikke kuttes kort
+        if self._notify_job:
+            self.root.after_cancel(self._notify_job)
+        self._notify_job = self.root.after(4000, lambda: self._status_var.set("Klar"))
     
     # =====================================================
     # TAB: VARELAGER
@@ -129,7 +157,7 @@ class VarehusApp:
             data = response.json()
             
             if not data.get("ok"):
-                messagebox.showerror("API Error", data.get("message", "Ukjent feil"))
+                self._notify(data.get("message", "Ukjent feil"), "error")
                 return
             
             # Tøm tabel
@@ -149,10 +177,10 @@ class VarehusApp:
                     )
                 )
             
-            messagebox.showinfo("Suksess", f"Lastet {len(data.get('items', []))} varer")
+            self._notify(f"Lastet {len(data.get('items', []))} varer", "info")
         
         except requests.exceptions.RequestException as e:
-            messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
+            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
     
     # =====================================================
     # TAB: ORDRER
@@ -209,7 +237,7 @@ class VarehusApp:
             data = response.json()
             
             if not data.get("ok"):
-                messagebox.showerror("API Error", data.get("message", "Ukjent feil"))
+                self._notify(data.get("message", "Ukjent feil"), "error")
                 return
             
             # Tøm tabel
@@ -230,16 +258,16 @@ class VarehusApp:
                     )
                 )
             
-            messagebox.showinfo("Suksess", f"Lastet {len(data.get('items', []))} ordrer")
+            self._notify(f"Lastet {len(data.get('items', []))} ordrer", "info")
         
         except requests.exceptions.RequestException as e:
-            messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
+            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
     
     def show_ordrer_detaljer(self):
         """Vis detaljer for valgt ordre"""
         selected = self.ordrer_tree.selection()
         if not selected:
-            messagebox.showwarning("Advarsel", "Velg en ordre først")
+            self._notify("Velg en ordre først", "warning")
             return
         
         ordreNr = self.ordrer_tree.item(selected[0])["values"][0]
@@ -250,7 +278,7 @@ class VarehusApp:
             data = response.json()
             
             if not data.get("ok"):
-                messagebox.showerror("API Error", data.get("message", "Ukjent feil"))
+                self._notify(data.get("message", "Ukjent feil"), "error")
                 return
             
             # Opprett detalj-vindu
@@ -299,15 +327,16 @@ class VarehusApp:
                 f"TOTAL: {self._to_float(totaler.get('total_med_moms')):.2f} kr"
             )
             ttk.Label(detail_window, text=total_text, font=("Arial", 11, "bold")).pack(padx=10, pady=10)
+            self._notify(f"Viser detaljer for ordre #{ordreNr}", "info")
         
         except requests.exceptions.RequestException as e:
-            messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
+            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
 
     def generate_faktura_pdf(self):
         """Generer og lagre PDF-faktura for valgt ordre"""
         selected = self.ordrer_tree.selection()
         if not selected:
-            messagebox.showwarning("Advarsel", "Velg en ordre først")
+            self._notify("Velg en ordre først", "warning")
             return
 
         ordreNr = self.ordrer_tree.item(selected[0])["values"][0]
@@ -321,7 +350,7 @@ class VarehusApp:
                     message = data.get("message", "Ukjent feil")
                 except Exception:
                     message = f"HTTP {response.status_code}"
-                messagebox.showerror("Faktura-feil", message)
+                self._notify(message, "error")
                 return
 
             faktura_nr = response.headers.get("X-Invoice-Number", f"faktura-{ordreNr}")
@@ -338,9 +367,9 @@ class VarehusApp:
             with open(filename, "wb") as out_file:
                 out_file.write(response.content)
 
-            messagebox.showinfo("Suksess", f"Faktura lagret: {filename}")
+            self._notify(f"Faktura lagret: {filename}", "info")
         except requests.exceptions.RequestException as e:
-            messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
+            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
     
     # =====================================================
     # TAB: KUNDER
@@ -400,7 +429,7 @@ class VarehusApp:
             data = response.json()
             
             if not data.get("ok"):
-                messagebox.showerror("API Error", data.get("message", "Ukjent feil"))
+                self._notify(data.get("message", "Ukjent feil"), "error")
                 return
             
             # Tøm tabel
@@ -421,10 +450,10 @@ class VarehusApp:
                     )
                 )
             
-            messagebox.showinfo("Suksess", f"Lastet {len(data.get('items', []))} kunder")
+            self._notify(f"Lastet {len(data.get('items', []))} kunder", "info")
         
         except requests.exceptions.RequestException as e:
-            messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
+            self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
     
     def add_kunde(self):
         """Legg til ny kunde"""
@@ -465,14 +494,14 @@ class VarehusApp:
                 data = response.json()
                 
                 if data.get("ok"):
-                    messagebox.showinfo("Suksess", f"Kunde lagt til (ID: {data['KNr']})")
+                    self._notify(f"Kunde lagt til (ID: {data['KNr']})", "info")
                     add_window.destroy()
                     self.update_kunder()
                 else:
-                    messagebox.showerror("Feil", data.get("message", "Ukjent feil"))
+                    self._notify(data.get("message", "Ukjent feil"), "error")
             
             except requests.exceptions.RequestException as e:
-                messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
+                self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
         
         ttk.Button(add_window, text="Lagre", command=save_kunde).pack(pady=10)
     
@@ -482,7 +511,7 @@ class VarehusApp:
         # med eksisterende ordrer ikke kan fjernes.
         selected = self.kunder_tree.selection()
         if not selected:
-            messagebox.showwarning("Advarsel", "Velg en kunde først")
+            self._notify("Velg en kunde først", "warning")
             return
         
         KNr = self.kunder_tree.item(selected[0])["values"][0]
@@ -493,13 +522,13 @@ class VarehusApp:
                 data = response.json()
                 
                 if data.get("ok"):
-                    messagebox.showinfo("Suksess", "Kunde slettet")
+                    self._notify("Kunde slettet", "info")
                     self.update_kunder()
                 else:
-                    messagebox.showerror("Feil", data.get("message", "Ukjent feil"))
+                    self._notify(data.get("message", "Ukjent feil"), "error")
             
             except requests.exceptions.RequestException as e:
-                messagebox.showerror("Tilkoblingsfeil", f"Kan ikke koble til API: {str(e)}")
+                self._notify(f"Tilkoblingsfeil: {str(e)}", "error")
     
     # =====================================================
     # TAB: STATUS
