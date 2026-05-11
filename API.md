@@ -207,7 +207,7 @@ Response (200 OK):
 Response (503 Service Unavailable):
 {
   "ok": false,
-  "message": "Access denied for user 'evehan07'@'...' (using password: YES)"
+  "message": "Database connection failed"
 }
 ```
 
@@ -216,7 +216,7 @@ Response (503 Service Unavailable):
 ## CORS
 
 API'en støtter CORS for følgende origin-er (fra `.env`):
-- `CORS_ALLOWED_ORIGINS=https://sfsi25itdnettgruppe4.github.io,http://localhost:3000`
+- `CORS_ALLOWED_ORIGINS=https://sfsi25itdnettgruppe4.github.io,https://sfsi25itdnettgruppe4.github.io/Ak2gruppe4,http://127.0.0.1:5000,http://localhost:5000`
 
 ---
 
@@ -245,7 +245,7 @@ Alle endpoints returnerer JSON med struktur:
 
 For at API'en skal virke fullt ut, kjør dette SQL-scriptet:
 ```bash
-mysql -u evehan07 -p varehusdb < db/setup_api_features.sql
+mysql -u <bruker> -p varehusdb < db/setup_api_features.sql
 ```
 
 Dette oppretter:

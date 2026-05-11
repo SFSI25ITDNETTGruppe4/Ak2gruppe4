@@ -1,11 +1,12 @@
 # Prosjektlogg og overlevering
 
-Sist oppdatert: 2026-04-26
+Sist oppdatert: 2026-05-11
 Repo: SFSI25ITDNETTGruppe4/Ak2gruppe4
 Branch: main
 
 ## 1) Kort status nå
 
+- Løsningen er nå publisert som **Release 1 (v1.0.0)**.
 - Backend på Render er live: https://ak2gruppe4.onrender.com
 - Frontend på GitHub Pages er live: https://sfsi25itdnettgruppe4.github.io/Ak2gruppe4/
 - Databasekobling er verifisert i produksjon (health/db = ok true).
@@ -15,7 +16,7 @@ Branch: main
   - /api/ordrer/<ordreNr>
   - /api/kunder
   - /health/db
-- Faktura-endepunkt er implementert:
+- Faktura-endepunkt er implementert og tilgjengelig i produksjon:
   - POST /api/ordrer/<ordreNr>/faktura
   - Genererer PDF
   - Lagrer unikt fakturanummer i tabell `faktura`
@@ -24,14 +25,18 @@ Branch: main
 
 Nylige commits på main:
 
-- 3841641 Fiks Pages build ved å fjerne ugyldig submodule-gitlink
-- 84b2067 Implementer faktura-PDF med unikt fakturanummer i database
-- dc137c9 Legg til prosjektlogg for overlevering og oppstart
-- 5e457fe Fix SQL alias for order details endpoint
-- f5a66a2 Fiks DB-config fallback og fjern hardkodet credential-spor
-- 95edeb6 Legg til Tkinter GUI med alle tabs
-- 07f28a3 Legg til API-dokumentasjon
-- 73acb24 Implementer ordredetaljer og kund-API endepunkter
+- a52ea1e Arkiver sprint 1 TODO som historisk plan
+- 960fd5b Lenke kravmatrise fra README
+- 6efa6e1 Oppdater sjekkliste med verifisert status og bevis
+- a5f8eaa Legg til kravmatrise med sporbarhet mot oppgavetekst
+- 53a2560 Marker release 1 og videre versjonsstrategi
+- 05ef0f2 Robust API-håndtering og enklere sikkerhetsgrep
+- e1bef6b Rett feil i sortering og kunder-tabell
+- 90608ae Klikk-sortering på kolonneoverskrifter
+- d06740e Live søk/filter i alle tabeller
+- 955d619 Zebra-striper i alle tabeller
+- 4252db5 Aktiv tab-markering i navbar
+- 02c98b3 Mørk header-bar med appnavn og gruppenavn
 
 ## 3) Funksjonalitet som finnes nå
 
@@ -82,18 +87,17 @@ GUI i gui.py:
 
 Høy prioritet:
 
-- Strammere inputvalidering i GUI (for eksempel samme regler som API for postnummer/navn)
-- Testskript eller enkel testplan som dokumenterer funksjonene
+- Fullføre siste manuelle GUI-tester for kundesletting og fakturaflyt
+- Fullføre presentasjonstest og ferdigstille rapporttekst
 
 Middels prioritet:
 
-- Forbedre feilmeldinger og brukerflyt i GUI
-- Legge inn tydelig visning av fakturanummer etter fakturagenerering
+- Legge inn skjermbilder og bevis i presentasjon/rapport
+- Kortfatte og språkvaske rapportens siste versjon
 
 Lav prioritet:
 
-- UI-polish i GUI
-- Mer dokumentasjon i rapportformat
+- Små forbedringer i GUI-tekst og mikroflyt dersom tid gjenstår
 
 ## 7) Board/backlog status
 
@@ -117,3 +121,4 @@ Lav prioritet:
 - Løsningen er idempotent per ordre: finnes faktura fra før, gjenbrukes samme fakturanummer.
 - GitHub Pages er konfigurert på `main` + `/docs` og verifisert live etter build-fiks.
 - API + GUI + Pages er nå koblet mot live backend på Render.
+- Prosjektet er nå merket som Release 1 (v1.0.0), og videre arbeid håndteres som patcher, bugfixes og nye features.

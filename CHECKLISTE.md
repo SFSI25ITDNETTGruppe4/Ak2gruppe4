@@ -60,7 +60,7 @@ Statusnøkler:
 
 - [x] README er oppdatert med full oppstartsguide
 - [~] API.md matcher faktisk API (bør ta siste hurtigsjekk mot `app.py`)
-- [~] PROJECT_STATUS_LOG.md er oppdatert med siste status (bør oppdateres med release v1.0.0)
+- [x] PROJECT_STATUS_LOG.md er oppdatert med siste status (Release 1 / v1.0.0)
 - [x] Commit-meldinger er tydelige og beskriver endringen
 
 ## 8) Rapport og presentasjon
