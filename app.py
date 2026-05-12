@@ -138,65 +138,115 @@ def build_invoice_pdf(ordre, linjer, totaler, faktura_nr):
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    y = height - 50
+    left_margin = 40
+    right_margin = width - 50
+    top_margin = height - 50
+    row_height = 14
+
+    # Relative kolonneplassering gjør layouten mindre sårbar enn faste pikselverdier.
+    col_vnr = left_margin
+    col_vare = left_margin + 45
+    col_sum = right_margin
+    col_pris = col_sum - 90
+    col_antall = col_pris - 90
+    vare_width = col_antall - col_vare - 12
+
+    def fit_text_to_width(text, max_width, font_name="Helvetica", base_size=10, min_size=7):
+        text_value = str(text)
+        font_size = base_size
+        while font_size > min_size and pdf.stringWidth(text_value, font_name, font_size) > max_width:
+            font_size -= 1
+
+        if pdf.stringWidth(text_value, font_name, font_size) <= max_width:
+            return text_value, font_size
+
+        # Fallback for ekstreme tilfeller: behold lesbar størrelse og kutt med ellipsis.
+        ellipsis = "..."
+        truncated = text_value
+        while truncated and pdf.stringWidth(truncated + ellipsis, font_name, min_size) > max_width:
+            truncated = truncated[:-1]
+        return (truncated + ellipsis) if truncated else ellipsis, min_size
+
+    y = top_margin
     pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(40, y, "Faktura")
+    pdf.drawString(left_margin, y, "Faktura")
     y -= 28
 
     pdf.setFont("Helvetica", 10)
-    pdf.drawString(40, y, f"Fakturanummer: {faktura_nr}")
+    pdf.drawString(left_margin, y, f"Fakturanummer: {faktura_nr}")
     y -= 16
-    pdf.drawString(40, y, f"OrdreNr: {ordre['OrdreNr']}")
+    pdf.drawString(left_margin, y, f"OrdreNr: {ordre['OrdreNr']}")
     y -= 16
-    pdf.drawString(40, y, f"Dato: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    pdf.drawString(left_margin, y, f"Dato: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     y -= 28
 
     pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(40, y, "Kunde")
+    pdf.drawString(left_margin, y, "Kunde")
     y -= 18
     pdf.setFont("Helvetica", 10)
-    pdf.drawString(40, y, ordre.get("Navn") or "Ukjent kunde")
+    pdf.drawString(left_margin, y, ordre.get("Navn") or "Ukjent kunde")
     y -= 14
-    pdf.drawString(40, y, ordre.get("Adresse") or "")
+    pdf.drawString(left_margin, y, ordre.get("Adresse") or "")
     y -= 14
-    pdf.drawString(40, y, f"{ordre.get('Postnummer') or ''} {ordre.get('By') or ''}".strip())
+    pdf.drawString(left_margin, y, f"{ordre.get('Postnummer') or ''} {ordre.get('By') or ''}".strip())
     y -= 26
 
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(40, y, "VNr")
-    pdf.drawString(85, y, "Vare")
-    pdf.drawRightString(360, y, "Antall")
-    pdf.drawRightString(450, y, "Pris")
-    pdf.drawRightString(540, y, "Linjesum")
-    y -= 10
-    pdf.line(40, y, 545, y)
-    y -= 14
+    def draw_table_header(current_y):
+        pdf.setFont("Helvetica-Bold", 10)
+        pdf.drawString(col_vnr, current_y, "VNr")
+        pdf.drawString(col_vare, current_y, "Vare")
+        pdf.drawRightString(col_antall, current_y, "Antall")
+        pdf.drawRightString(col_pris, current_y, "Pris")
+        pdf.drawRightString(col_sum, current_y, "Linjesum")
+        current_y -= 10
+        pdf.line(left_margin, current_y, right_margin, current_y)
+        return current_y - row_height
+
+    y = draw_table_header(y)
 
     pdf.setFont("Helvetica", 10)
     for linje in linjer:
         if y < 120:
             pdf.showPage()
-            y = height - 50
+            y = top_margin
             pdf.setFont("Helvetica", 10)
-        pdf.drawString(40, y, str(linje["VNr"]))
-        pdf.drawString(85, y, str(linje["Betegnelse"])[:42])
-        pdf.drawRightString(360, y, str(linje["Antall"]))
-        pdf.drawRightString(450, y, f"{float(linje['Pris']):.2f} kr")
-        pdf.drawRightString(540, y, f"{float(linje['LinjeSum']):.2f} kr")
-        y -= 14
+            y = draw_table_header(y)
+            pdf.setFont("Helvetica", 10)
+        vare_text, vare_font_size = fit_text_to_width(linje["Betegnelse"], vare_width)
+        pdf.drawString(col_vnr, y, str(linje["VNr"]))
+        pdf.setFont("Helvetica", vare_font_size)
+        pdf.drawString(col_vare, y, vare_text)
+        pdf.setFont("Helvetica", 10)
+        pdf.drawRightString(col_antall, y, str(linje["Antall"]))
+        pdf.drawRightString(col_pris, y, f"{float(linje['Pris']):.2f} kr")
+        pdf.drawRightString(col_sum, y, f"{float(linje['LinjeSum']):.2f} kr")
+        y -= row_height
 
     y -= 8
-    pdf.line(340, y, 545, y)
+    totals_left = col_pris - 20
+    pdf.line(totals_left, y, right_margin, y)
     y -= 18
-    pdf.drawRightString(520, y, "Subtotal:")
-    pdf.drawRightString(545, y, f"{float(totaler['total_før_moms']):.2f} kr")
-    y -= 16
-    pdf.drawRightString(520, y, "MVA 25%:")
-    pdf.drawRightString(545, y, f"{float(totaler['moms_25_prosent']):.2f} kr")
-    y -= 18
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawRightString(520, y, "Total:")
-    pdf.drawRightString(545, y, f"{float(totaler['total_med_moms']):.2f} kr")
+    total_lines = [
+        ("Subtotal:", f"{float(totaler['total_før_moms']):.2f} kr", False),
+        ("MVA 25%:", f"{float(totaler['moms_25_prosent']):.2f} kr", False),
+        ("Total:", f"{float(totaler['total_med_moms']):.2f} kr", True),
+    ]
+
+    max_label_len = max(len(label) for label, _, _ in total_lines)
+    totals_label_x = totals_left
+    totals_value_x = right_margin
+    min_gap = max_label_len * 2
+
+    for label, value, is_bold in total_lines:
+        if is_bold:
+            pdf.setFont("Helvetica-Bold", 11)
+        else:
+            pdf.setFont("Helvetica", 10)
+        pdf.drawString(totals_label_x, y, label)
+        value_width = pdf.stringWidth(value, pdf._fontname, pdf._fontsize)
+        value_x = max(totals_value_x, totals_label_x + min_gap + value_width)
+        pdf.drawRightString(value_x, y, value)
+        y -= 18 if is_bold else 16
 
     pdf.showPage()
     pdf.save()
