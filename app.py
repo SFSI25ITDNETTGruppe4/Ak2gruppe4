@@ -134,6 +134,7 @@ def generate_unique_invoice_number(cursor, ordre_nr):
 
 
 def build_invoice_pdf(ordre, linjer, totaler, faktura_nr):
+    # Lager en faktura-PDF fra ordredata, varelinjer og beregnede totaler.
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -141,9 +142,11 @@ def build_invoice_pdf(ordre, linjer, totaler, faktura_nr):
     left_margin = 40
     right_margin = width - 50
     top_margin = height - 50
-    row_height = 14
+    row_height = 16
+    content_width = right_margin - left_margin
 
-    # Relative kolonneplassering gjør layouten mindre sårbar enn faste pikselverdier.
+    # Koordinater er endret fra hardkodede enkeltverdier til ankerpunkter basert på marger/bredde.
+    # Dette gjør at tabell og totaler holder seg riktig justert selv om innholdet varierer.
     col_vnr = left_margin
     col_vare = left_margin + 45
     col_sum = right_margin
@@ -152,6 +155,7 @@ def build_invoice_pdf(ordre, linjer, totaler, faktura_nr):
     vare_width = col_antall - col_vare - 12
 
     def fit_text_to_width(text, max_width, font_name="Helvetica", base_size=10, min_size=7):
+        # Tilpasser varenavn til tilgjengelig kolonnebredde ved å redusere fontstørrelse.
         text_value = str(text)
         font_size = base_size
         while font_size > min_size and pdf.stringWidth(text_value, font_name, font_size) > max_width:
@@ -168,50 +172,74 @@ def build_invoice_pdf(ordre, linjer, totaler, faktura_nr):
         return (truncated + ellipsis) if truncated else ellipsis, min_size
 
     y = top_margin
-    pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(left_margin, y, "Faktura")
-    y -= 28
+    pdf.setLineWidth(1)
+
+    # Toppseksjon med tydelig visuelt hierarki for fakturahode og metadata.
+    pdf.setFillColorRGB(0.95, 0.97, 1.0)
+    pdf.rect(left_margin, y - 34, content_width, 34, stroke=0, fill=1)
+    pdf.setFillColorRGB(0, 0, 0)
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(left_margin + 10, y - 22, "Faktura")
 
     pdf.setFont("Helvetica", 10)
-    pdf.drawString(left_margin, y, f"Fakturanummer: {faktura_nr}")
-    y -= 16
-    pdf.drawString(left_margin, y, f"OrdreNr: {ordre['OrdreNr']}")
-    y -= 16
-    pdf.drawString(left_margin, y, f"Dato: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    y -= 28
+    meta_y = y - 10
+    pdf.drawRightString(right_margin - 10, meta_y, f"Fakturanummer: {faktura_nr}")
+    meta_y -= 13
+    pdf.drawRightString(right_margin - 10, meta_y, f"OrdreNr: {ordre['OrdreNr']}")
+    meta_y -= 13
+    pdf.drawRightString(right_margin - 10, meta_y, f"Dato: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
+    y -= 50
+
+    # Kundeinformasjon vises i egen boks for bedre lesbarhet.
+    kunde_box_height = 52
+    pdf.setStrokeColorRGB(0.85, 0.85, 0.85)
+    pdf.rect(left_margin, y - kunde_box_height + 8, content_width, kunde_box_height, stroke=1, fill=0)
+    pdf.setStrokeColorRGB(0, 0, 0)
     pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(left_margin, y, "Kunde")
-    y -= 18
+    pdf.drawString(left_margin + 8, y, "Kunde")
     pdf.setFont("Helvetica", 10)
-    pdf.drawString(left_margin, y, ordre.get("Navn") or "Ukjent kunde")
-    y -= 14
-    pdf.drawString(left_margin, y, ordre.get("Adresse") or "")
-    y -= 14
-    pdf.drawString(left_margin, y, f"{ordre.get('Postnummer') or ''} {ordre.get('By') or ''}".strip())
-    y -= 26
+    pdf.drawString(left_margin + 8, y - 14, ordre.get("Navn") or "Ukjent kunde")
+    pdf.drawString(left_margin + 8, y - 27, ordre.get("Adresse") or "")
+    pdf.drawString(left_margin + 8, y - 40, f"{ordre.get('Postnummer') or ''} {ordre.get('By') or ''}".strip())
+    y -= 66
 
     def draw_table_header(current_y):
+        # Tegner tabellhode og returnerer ny y-posisjon for første rad.
+        pdf.setFillColorRGB(0.93, 0.93, 0.93)
+        pdf.rect(left_margin, current_y - 11, content_width, 16, stroke=0, fill=1)
+        pdf.setFillColorRGB(0, 0, 0)
         pdf.setFont("Helvetica-Bold", 10)
         pdf.drawString(col_vnr, current_y, "VNr")
         pdf.drawString(col_vare, current_y, "Vare")
         pdf.drawRightString(col_antall, current_y, "Antall")
         pdf.drawRightString(col_pris, current_y, "Pris")
         pdf.drawRightString(col_sum, current_y, "Linjesum")
-        current_y -= 10
+        current_y -= 11
+        pdf.setStrokeColorRGB(0.8, 0.8, 0.8)
         pdf.line(left_margin, current_y, right_margin, current_y)
+        pdf.setStrokeColorRGB(0, 0, 0)
         return current_y - row_height
 
     y = draw_table_header(y)
 
     pdf.setFont("Helvetica", 10)
-    for linje in linjer:
+    # Tegner alle varelinjer, og fortsetter på ny side ved behov.
+    for idx, linje in enumerate(linjer):
         if y < 120:
             pdf.showPage()
             y = top_margin
-            pdf.setFont("Helvetica", 10)
+            pdf.setFont("Helvetica-Bold", 15)
+            pdf.drawString(left_margin, y, f"Faktura {faktura_nr} (forts.)")
+            y -= 28
             y = draw_table_header(y)
             pdf.setFont("Helvetica", 10)
+
+        if idx % 2 == 1:
+            pdf.setFillColorRGB(0.98, 0.98, 0.98)
+            pdf.rect(left_margin, y - 11, content_width, row_height, stroke=0, fill=1)
+            pdf.setFillColorRGB(0, 0, 0)
+
         vare_text, vare_font_size = fit_text_to_width(linje["Betegnelse"], vare_width)
         pdf.drawString(col_vnr, y, str(linje["VNr"]))
         pdf.setFont("Helvetica", vare_font_size)
@@ -223,8 +251,12 @@ def build_invoice_pdf(ordre, linjer, totaler, faktura_nr):
         y -= row_height
 
     y -= 8
-    totals_left = col_pris - 20
+    # Totalfeltet bruker faste ankerpunkter på høyresiden for stabil justering av label/verdi.
+    totals_label_right = right_margin - 90
+    totals_left = totals_label_right - 90
+    pdf.setStrokeColorRGB(0.5, 0.5, 0.5)
     pdf.line(totals_left, y, right_margin, y)
+    pdf.setStrokeColorRGB(0, 0, 0)
     y -= 18
     total_lines = [
         ("Subtotal:", f"{float(totaler['total_før_moms']):.2f} kr", False),
@@ -232,23 +264,15 @@ def build_invoice_pdf(ordre, linjer, totaler, faktura_nr):
         ("Total:", f"{float(totaler['total_med_moms']):.2f} kr", True),
     ]
 
-    max_label_len = max(len(label) for label, _, _ in total_lines)
-    totals_label_x = totals_left
-    totals_value_x = right_margin
-    min_gap = max_label_len * 2
-
     for label, value, is_bold in total_lines:
         if is_bold:
             pdf.setFont("Helvetica-Bold", 11)
         else:
             pdf.setFont("Helvetica", 10)
-        pdf.drawString(totals_label_x, y, label)
-        value_width = pdf.stringWidth(value, pdf._fontname, pdf._fontsize)
-        value_x = max(totals_value_x, totals_label_x + min_gap + value_width)
-        pdf.drawRightString(value_x, y, value)
+        pdf.drawRightString(totals_label_right, y, label)
+        pdf.drawRightString(right_margin, y, value)
         y -= 18 if is_bold else 16
 
-    pdf.showPage()
     pdf.save()
     buffer.seek(0)
     return buffer
