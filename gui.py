@@ -523,57 +523,57 @@ class VarehusApp:
         if not data.get("ok"):
             self._notify(data.get("message", "Ukjent feil"), "error")
             return
-            
-            # Opprett detalj-vindu
-            detail_window = tk.Toplevel(self.root)
-            detail_window.title(f"Ordre #{ordreNr} - Detaljer")
-            detail_window.geometry("700x600")
-            
-            # Kundeinfo
-            ordre = data["ordre"]
-            kunde_text = f"Kunde: {ordre.get('Navn', 'N/A')}\n{ordre.get('Adresse', '')}\n{ordre.get('Postnummer', '')} {ordre.get('By', '')}"
-            ttk.Label(detail_window, text=kunde_text, font=("Arial", 10)).pack(padx=10, pady=10)
-            
-            # Tabell for ordrelinjer
-            tree = ttk.Treeview(detail_window, columns=("VNr", "Betegnelse", "Antall", "Pris", "Sum"), height=15)
-            tree.column("#0", width=0)
-            tree.column("VNr", width=50)
-            tree.column("Betegnelse", width=250)
-            tree.column("Antall", width=60)
-            tree.column("Pris", width=80)
-            tree.column("Sum", width=80)
-            
-            tree.heading("VNr", text="V-Nr")
-            tree.heading("Betegnelse", text="Vare")
-            tree.heading("Antall", text="Antall")
-            tree.heading("Pris", text="Pris (kr)")
-            tree.heading("Sum", text="Sum (kr)")
-            
-            # løkken legger inn hver ordrelinje i detaljtabellen slik at bruker ser
-            # hvilke varer som er solgt, hvor mange og hva hver linje koster.
-            # Zebra-striper i detalj-vinduets tabell
-            tree.tag_configure("odd",  background=COLORS["row_odd"])
-            tree.tag_configure("even", background=COLORS["row_even"])
-            for i, linje in enumerate(data.get("linjer", [])):
-                tree.insert("", tk.END, tags=("odd" if i % 2 == 0 else "even",), values=(
-                    linje["VNr"],
-                    linje["Betegnelse"],
-                    linje["Antall"],
-                    f"{self._to_float(linje.get('Pris')):.2f}",
-                    f"{self._to_float(linje.get('LinjeSum')):.2f}"
-                ))
-            
-            tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-            
-            # Totaler
-            totaler = data["totaler"]
-            total_text = (
-                f"Subtotal: {self._to_float(totaler.get('total_før_moms')):.2f} kr\n"
-                f"Moms (25%): {self._to_float(totaler.get('moms_25_prosent')):.2f} kr\n"
-                f"TOTAL: {self._to_float(totaler.get('total_med_moms')):.2f} kr"
-            )
-            ttk.Label(detail_window, text=total_text, font=("Arial", 11, "bold")).pack(padx=10, pady=10)
-            self._notify(f"Viser detaljer for ordre #{ordreNr}", "info")
+        
+        # Opprett detalj-vindu
+        detail_window = tk.Toplevel(self.root)
+        detail_window.title(f"Ordre #{ordreNr} - Detaljer")
+        detail_window.geometry("700x600")
+        
+        # Kundeinfo
+        ordre = data["ordre"]
+        kunde_text = f"Kunde: {ordre.get('Navn', 'N/A')}\n{ordre.get('Adresse', '')}\n{ordre.get('Postnummer', '')} {ordre.get('By', '')}"
+        ttk.Label(detail_window, text=kunde_text, font=("Arial", 10)).pack(padx=10, pady=10)
+        
+        # Tabell for ordrelinjer
+        tree = ttk.Treeview(detail_window, columns=("VNr", "Betegnelse", "Antall", "Pris", "Sum"), height=15)
+        tree.column("#0", width=0)
+        tree.column("VNr", width=50)
+        tree.column("Betegnelse", width=250)
+        tree.column("Antall", width=60)
+        tree.column("Pris", width=80)
+        tree.column("Sum", width=80)
+        
+        tree.heading("VNr", text="V-Nr")
+        tree.heading("Betegnelse", text="Vare")
+        tree.heading("Antall", text="Antall")
+        tree.heading("Pris", text="Pris (kr)")
+        tree.heading("Sum", text="Sum (kr)")
+        
+        # løkken legger inn hver ordrelinje i detaljtabellen slik at bruker ser
+        # hvilke varer som er solgt, hvor mange og hva hver linje koster.
+        # Zebra-striper i detalj-vinduets tabell
+        tree.tag_configure("odd",  background=COLORS["row_odd"])
+        tree.tag_configure("even", background=COLORS["row_even"])
+        for i, linje in enumerate(data.get("linjer", [])):
+            tree.insert("", tk.END, tags=("odd" if i % 2 == 0 else "even",), values=(
+                linje["VNr"],
+                linje["Betegnelse"],
+                linje["Antall"],
+                f"{self._to_float(linje.get('Pris')):.2f}",
+                f"{self._to_float(linje.get('LinjeSum')):.2f}"
+            ))
+        
+        tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Totaler
+        totaler = data["totaler"]
+        total_text = (
+            f"Subtotal: {self._to_float(totaler.get('total_før_moms')):.2f} kr\n"
+            f"Moms (25%): {self._to_float(totaler.get('moms_25_prosent')):.2f} kr\n"
+            f"TOTAL: {self._to_float(totaler.get('total_med_moms')):.2f} kr"
+        )
+        ttk.Label(detail_window, text=total_text, font=("Arial", 11, "bold")).pack(padx=10, pady=10)
+        self._notify(f"Viser detaljer for ordre #{ordreNr}", "info")
 
     def generate_faktura_pdf(self):
         """Generer og lagre PDF-faktura for valgt ordre"""
