@@ -6,7 +6,7 @@ Dette dokumentet er historisk planmateriale fra oppstarten og skal ikke brukes s
 For gjeldende status og leveransebevis, bruk disse filene:
 
 - `CHECKLISTE.md`
-- `KRAVMATRISE.md`
+- `..\requirements\KRAVMATRISE.md`
 - `PROJECT_STATUS_LOG.md`
 
 Maal for sprinten:

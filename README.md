@@ -7,7 +7,13 @@ Denne oppskriften dekker alt som trengs for å kjøre prosjektet:
 - Backend API: Render (Flask + MySQL)
 - GUI: Tkinter (`gui.py`)
 
-Raskeste oppstart for ny maskin: se [START_HER.md](START_HER.md)
+Raskeste oppstart for ny maskin: se [docs/guides/START_HER.md](docs/guides/START_HER.md)
+
+## Dokumentoversikt
+
+- Guider: [docs/guides](docs/guides)
+- Prosjektstatus og plan: [docs/project](docs/project)
+- Krav, oppgavetekst og API-dokumentasjon: [docs/requirements](docs/requirements)
 
 ## 0. Krav
 
@@ -184,9 +190,9 @@ python app.py
 
 ## 12. Før demo/innlevering
 
-Se [CHECKLISTE.md](CHECKLISTE.md) for en kort gjennomgang av alt som bør verifiseres før demo og innlevering.
+Se [docs/project/CHECKLISTE.md](docs/project/CHECKLISTE.md) for en kort gjennomgang av alt som bør verifiseres før demo og innlevering.
 
-Krav mot oppgavetekst er samlet i [KRAVMATRISE.md](KRAVMATRISE.md).
+Krav mot oppgavetekst er samlet i [docs/requirements/KRAVMATRISE.md](docs/requirements/KRAVMATRISE.md).
 
 ## 13. Testlogg
 
@@ -203,16 +209,18 @@ Kjørt fra lokal .venv med følgende resultat:
 
 ## 14. Release-status
 
-Per 2026-05-07 regnes dette som **Release 1** av applikasjonen.
+Per 2026-05-16 er formell forrige release:
 
-Dette regnes som ferdig baseline for arbeidskravet. Videre arbeid gjøres som:
+- `v1.0.0` (tagget baseline / Release 1)
 
-- nye features
-- patches
-- bugfixes
+Status pa `main` etter forrige release:
 
-Anbefalt versjonering videre:
+- `main` er oppdatert mot `origin/main`
+- det finnes ingen ny tag etter `v1.0.0`
+- repoet inneholder flere commits etter `v1.0.0` (forbedringer og bugfixes)
 
-- `v1.0.0` = Release 1 (baseline)
+Anbefalt videre versjonering:
+
+- `v1.0.1` = neste patch-release fra dagens `main` nar siste verifisering er kjort
 - `v1.0.x` = bugfix/patch
 - `v1.x.0` = nye features uten breaking changes

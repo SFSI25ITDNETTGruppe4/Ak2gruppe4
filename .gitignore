@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 *.code-workspace
 RAPPORT.md
+
+# Private report-writing material (keep local)
+report-private/
+rapport-private/
+report-drafts/
+rapport-utkast/
+scripts/presentation/generate_presentation.py

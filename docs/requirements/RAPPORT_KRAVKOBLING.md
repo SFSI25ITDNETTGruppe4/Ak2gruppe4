@@ -63,12 +63,12 @@ Dette gir et tydelig bevis på at kjerneløsningen fungerer i praksis.
 
 Følgende filer brukes som dokumentasjon og bevis i rapporten:
 
-- [app.py](app.py): REST-API, databasekobling, parametriserte spørringer, stored procedure og fakturagenerering
-- [gui.py](gui.py): Tkinter-GUI, visning av varelager, ordrer, kunder og fakturaflyt
-- [docs/app.js](docs/app.js): Nettleserbasert visning av varelager og ordrer via API
-- [CHECKLISTE.md](CHECKLISTE.md): Testbevis og status for kravene
+- [app.py](../../app.py): REST-API, databasekobling, parametriserte spørringer, stored procedure og fakturagenerering
+- [gui.py](../../gui.py): Tkinter-GUI, visning av varelager, ordrer, kunder og fakturaflyt
+- [docs/app.js](../app.js): Nettleserbasert visning av varelager og ordrer via API
+- [CHECKLISTE.md](../project/CHECKLISTE.md): Testbevis og status for kravene
 - [KRAVMATRISE.md](KRAVMATRISE.md): Kompakt oversikt over hvert krav og hvor det er løst
-- [PROJECT_STATUS_LOG.md](PROJECT_STATUS_LOG.md): Overleveringsstatus og verifiserte endepunkter
+- [PROJECT_STATUS_LOG.md](../project/PROJECT_STATUS_LOG.md): Overleveringsstatus og verifiserte endepunkter
 
 ## Kort vurdering av måloppnåelse
 
